@@ -226,7 +226,7 @@ html, body {
 .sliders {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  gap: 14px 16px;
   margin-top: 16px;
 }
 
@@ -272,6 +272,95 @@ input[type="range"] {
 
 .muted {
   color: var(--text-dim);
+}
+
+/* ----- Recording indicator ----- */
+.hud-rec {
+  color: #ef4444 !important;
+  font-weight: 700;
+  text-shadow: 0 0 8px rgba(239, 68, 68, 0.7);
+  animation: pulse 1s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.4; }
+}
+.btn-rec {
+  background: #ef4444;
+  color: #fff;
+  border-color: #ef4444;
+}
+.btn-rec:hover:not(:disabled) {
+  background: #dc2626;
+}
+
+/* ----- Dataset panel ----- */
+.dataset-panel {
+  margin-top: 16px;
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+}
+
+.dataset-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 10px;
+}
+
+.dataset-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.dataset-folders {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+}
+
+.folder-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--surface-2);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  transition: transform 0.1s;
+}
+
+.folder-card:hover {
+  transform: translateY(-1px);
+}
+
+.folder-icon {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.folder-meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.folder-name {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.folder-count {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 2px;
 }
 
 /* ----- Footer ----- */

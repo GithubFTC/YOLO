@@ -565,25 +565,65 @@ async function startLive() {
   if (running) return;
   if (!(await ensureModel())) return;
 
+  // Reset the <video> element completely — if upload mode was used previously,
+  // vid.src will be set, and that conflicts with srcObject. Also clear any
+  // lingering metadata handlers from upload mode.
+  vid.onloadedmetadata = null;
+  vid.onended = null;
+  vid.pause();
+  vid.removeAttribute('src');
+  vid.load();
+  vid.muted = true;
+  vid.playsInline = true;
+
   statusEl.textContent = 'Requesting camera…';
+
+  // Try environment camera first (rear on mobile), then fall back to any camera.
+  // Laptops typically only have a front camera and the 'environment' request
+  // returns an OverconstrainedError, not a graceful fallback, in some browsers.
+  let attempts = [
+    { video: { facingMode: { ideal: 'environment' }, width: { ideal: 640 }, height: { ideal: 480 } }, audio: false },
+    { video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }, audio: false },
+    { video: true, audio: false }
+  ];
+
+  let lastError = null;
+  for (const constraints of attempts) {
+    try {
+      stream = await navigator.mediaDevices.getUserMedia(constraints);
+      break;
+    } catch (e) {
+      lastError = e;
+      console.warn('getUserMedia failed for', constraints, e);
+      stream = null;
+    }
+  }
+
+  if (!stream) {
+    const msg = lastError ? `${lastError.name}: ${lastError.message}` : 'no camera available';
+    statusEl.textContent = `Camera failed — ${msg}. Check browser permissions.`;
+    return;
+  }
+
   try {
-    stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } },
-      audio: false
-    });
     vid.srcObject = stream;
-    vid.muted = true;
-    await new Promise(r => (vid.onloadedmetadata = r));
+    await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('metadata timeout')), 5000);
+      vid.onloadedmetadata = () => { clearTimeout(timeout); resolve(); };
+    });
     await vid.play();
-  } catch (_) {
-    statusEl.textContent = 'Camera denied or unavailable. Allow access and retry.';
+  } catch (e) {
+    console.error('Video element setup failed:', e);
+    statusEl.textContent = `Camera attached but won't play: ${e.message}`;
+    if (stream) stream.getTracks().forEach(t => t.stop());
+    stream = null;
     return;
   }
 
   vid.style.transform = 'scaleX(-1)';     // mirror live view
-  overlay.width = proc.width = vid.videoWidth;
-  overlay.height = proc.height = vid.videoHeight;
-  ensureComposite(vid.videoWidth, vid.videoHeight);
+  overlay.width = proc.width = vid.videoWidth || 640;
+  overlay.height = proc.height = vid.videoHeight || 480;
+  ensureComposite(overlay.width, overlay.height);
 
   overlayMsg.style.display = 'none';
   running = true;
@@ -638,12 +678,18 @@ fileInput.addEventListener('change', () => {
   if (!f) return;
   if (uploadVideoUrl) URL.revokeObjectURL(uploadVideoUrl);
   uploadVideoUrl = URL.createObjectURL(f);
+
+  // Fully reset the video element before assigning a new source.
+  vid.onloadedmetadata = null;
+  vid.onended = null;
+  vid.pause();
   vid.srcObject = null;
   vid.style.transform = 'none';
   vid.muted = true;
   vid.controls = false;
   vid.src = uploadVideoUrl;
   vid.load();
+
   vid.onloadedmetadata = () => {
     overlayMsg.style.display = '';
     overlaySub.textContent = `loaded "${f.name}" — press Process to begin`;
@@ -840,7 +886,15 @@ function setMode(newMode) {
   ctrlsLive   .hidden = mode !== 'live';
   ctrlsUpload .hidden = mode !== 'upload';
 
-  // reset viewport
+  // Fully reset the <video> element so we never have leftover src/srcObject
+  // from the previous mode (this was causing the camera-stuck-black bug).
+  vid.onloadedmetadata = null;
+  vid.onended = null;
+  vid.pause();
+  vid.srcObject = null;
+  vid.removeAttribute('src');
+  vid.load();
+
   octx.clearRect(0, 0, overlay.width, overlay.height);
   overlayMsg.style.display = '';
   if (mode === 'live') {
@@ -849,7 +903,6 @@ function setMode(newMode) {
   } else {
     overlaySub.textContent = 'choose a video file to begin';
     vid.style.transform = 'none';
-    vid.srcObject = null;
   }
   statusEl.textContent = mode === 'live'
     ? 'Live mode — press Start camera'

@@ -1,90 +1,153 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Real-time underwater object detection in the browser using YOLO-style models and TensorFlow.js" />
-  <title>Subsea Detect — Live Underwater Object Detection</title>
-  <link rel="stylesheet" href="src/styles.css" />
-</head>
-<body>
-  <div class="app">
-    <header class="app-header">
-      <div class="brand">
-        <span class="brand-mark">⬡</span>
-        <span class="brand-name">SUBSEA-DET</span>
-        <span class="brand-version">v1.0</span>
-      </div>
-      <div class="stats">
-        <div class="stat"><span class="stat-label">FPS</span><span id="fps" class="stat-val">—</span></div>
-        <div class="stat"><span class="stat-label">OBJECTS</span><span id="objcount" class="stat-val">0</span></div>
-        <div class="stat"><span class="stat-label">MODEL</span><span id="modelname" class="stat-val">—</span></div>
-      </div>
-    </header>
+  <!DOCTYPE html>
+  <html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Real-time underwater object detection in the browser using YOLO-style models and TensorFlow.js" />
+    <title>Subsea Detect — Live & Uploaded Underwater Detection</title>
+    <link rel="stylesheet" href="src/styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="app-header">
+        <div class="brand">
+          <span class="brand-mark">⬡</span>
+          <span class="brand-name">SUBSEA-DET</span>
+          <span class="brand-version">v1.2</span>
+        </div>
+        <div class="stats">
+          <div class="stat"><span class="stat-label">FPS</span><span id="fps" class="stat-val">—</span></div>
+          <div class="stat"><span class="stat-label">OBJECTS</span><span id="objcount" class="stat-val">0</span></div>
+          <div class="stat"><span class="stat-label">SAVED</span><span id="savedcount" class="stat-val">0</span></div>
+          <div class="stat"><span class="stat-label">CLIPS</span><span id="clipcount" class="stat-val">0</span></div>
+        </div>
+      </header>
 
-    <main>
-      <div class="status-bar">
-        <div id="status">Click "Start camera" to begin live detection</div>
-      </div>
-
-      <div class="viewport">
-        <video id="vid" autoplay playsinline muted></video>
-        <canvas id="overlay"></canvas>
-        <canvas id="proc" hidden></canvas>
-
-        <div class="hud">
-          <div>SUBSEA-DET v1.0</div>
-          <div id="hud-mode">MODE: STANDBY</div>
-          <div id="hud-time">T+ 00:00</div>
+      <main>
+        <div class="mode-tabs">
+          <button id="mode-live" class="mode-tab active">🎥 Live camera</button>
+          <button id="mode-upload" class="mode-tab">📁 Upload video</button>
         </div>
 
-        <div id="overlay-msg" class="overlay-msg">
-          <div class="overlay-msg-title">⬡ camera offline</div>
-          <div class="overlay-msg-sub">grant camera access to begin live detection</div>
+        <div class="status-bar">
+          <div id="status">Choose a mode and press Start to begin</div>
         </div>
-      </div>
 
-      <div class="controls">
-        <button id="btn-start" class="btn btn-primary">▶ Start camera</button>
-        <button id="btn-stop" class="btn" disabled>■ Stop</button>
-        <button id="btn-snap" class="btn" disabled>⬡ Capture frame</button>
-        <label class="toggle">
-          <input type="checkbox" id="uw-mode" checked />
-          <span>Underwater correction</span>
-        </label>
-      </div>
+        <div class="viewport">
+          <video id="vid" autoplay playsinline muted></video>
+          <canvas id="overlay"></canvas>
+          <canvas id="proc" hidden></canvas>
 
-      <div class="sliders">
-        <div class="slider-group">
-          <div class="slider-head">
-            <span>Confidence threshold</span>
-            <span id="conf-val">0.40</span>
+          <div class="hud">
+            <div>SUBSEA-DET v1.2</div>
+            <div id="hud-mode">MODE: STANDBY</div>
+            <div id="hud-time">T+ 00:00</div>
+            <div id="hud-rec" class="hud-rec" hidden>● REC</div>
           </div>
-          <input type="range" id="conf" min="10" max="90" value="40" step="5" />
-        </div>
-        <div class="slider-group">
-          <div class="slider-head">
-            <span>Red channel boost</span>
-            <span id="red-val">1.6x</span>
+
+          <div id="overlay-msg" class="overlay-msg">
+            <div class="overlay-msg-title">⬡ ready</div>
+            <div class="overlay-msg-sub" id="overlay-sub">choose live camera or upload a video to begin</div>
           </div>
-          <input type="range" id="red" min="10" max="30" value="16" step="1" />
+
+          <div id="progress-bar" class="progress-bar" hidden>
+            <div id="progress-fill" class="progress-fill"></div>
+          </div>
         </div>
-      </div>
 
-      <div id="detections" class="detections">
-        <div class="muted">// detections appear here when camera is active</div>
-      </div>
-    </main>
+        <!-- Hidden file input, triggered by the Upload tab -->
+        <input type="file" id="file-input" accept="video/*" hidden />
 
-    <footer class="app-footer">
-      <span>Runs 100% in your browser. No data leaves your device.</span>
-      <a href="https://github.com/GithubFTC/YOLO" target="_blank" rel="noopener">View on GitHub →</a>
-    </footer>
-  </div>
+        <div class="controls" id="controls-live">
+          <button id="btn-start" class="btn btn-primary">▶ Start camera</button>
+          <button id="btn-stop" class="btn" disabled>■ Stop</button>
+          <button id="btn-snap" class="btn" disabled>⬡ Capture</button>
+          <button id="btn-record" class="btn" disabled>⏺ Record</button>
+          <button id="btn-download" class="btn" disabled>⬇ Download dataset</button>
+          <label class="toggle">
+            <input type="checkbox" id="uw-mode" checked />
+            <span>Underwater correction</span>
+          </label>
+        </div>
 
-  <!-- TensorFlow.js + COCO-SSD (YOLO-style single-shot detector) -->
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
-  <script type="module" src="src/main.js"></script>
-</body>
-</html>
+        <div class="controls" id="controls-upload" hidden>
+          <button id="btn-choose" class="btn btn-primary">📂 Choose video file…</button>
+          <button id="btn-process" class="btn" disabled>▶ Process</button>
+          <button id="btn-stop-upload" class="btn" disabled>■ Stop</button>
+          <button id="btn-download-upload" class="btn" disabled>⬇ Download dataset</button>
+          <label class="toggle">
+            <input type="checkbox" id="uw-mode-upload" checked />
+            <span>Underwater correction</span>
+          </label>
+        </div>
+
+        <div class="sliders">
+          <div class="slider-group">
+            <div class="slider-head">
+              <span>Confidence threshold</span>
+              <span id="conf-val">0.40</span>
+            </div>
+            <input type="range" id="conf" min="10" max="90" value="40" step="5" />
+          </div>
+          <div class="slider-group">
+            <div class="slider-head">
+              <span>Red channel boost</span>
+              <span id="red-val">1.6x</span>
+            </div>
+            <input type="range" id="red" min="10" max="30" value="16" step="1" />
+          </div>
+          <div class="slider-group">
+            <div class="slider-head">
+              <span>Unknown threshold</span>
+              <span id="unk-val">0.55</span>
+            </div>
+            <input type="range" id="unk" min="20" max="80" value="55" step="5" />
+          </div>
+          <div class="slider-group">
+            <div class="slider-head">
+              <span>Save every N frames</span>
+              <span id="rate-val">15</span>
+            </div>
+            <input type="range" id="rate" min="1" max="60" value="15" step="1" />
+          </div>
+          <div class="slider-group">
+            <div class="slider-head">
+              <span>Clip length (sec)</span>
+              <span id="clip-val">3</span>
+            </div>
+            <input type="range" id="clip" min="1" max="10" value="3" step="1" />
+          </div>
+          <div class="slider-group">
+            <div class="slider-head">
+              <span>Min gap between clips (sec)</span>
+              <span id="gap-val">2</span>
+            </div>
+            <input type="range" id="gap" min="0" max="10" value="2" step="1" />
+          </div>
+        </div>
+
+        <div class="dataset-panel">
+          <div class="dataset-head">
+            <span class="dataset-title">📁 Captured dataset</span>
+            <span id="dataset-hint" class="muted">// folders appear as detections are saved</span>
+          </div>
+          <div id="dataset-folders" class="dataset-folders"></div>
+        </div>
+
+        <div id="detections" class="detections">
+          <div class="muted">// detections appear here when running</div>
+        </div>
+      </main>
+
+      <footer class="app-footer">
+        <span>Runs 100% in your browser. No data leaves your device.</span>
+        <a href="https://github.com/GithubFTC/YOLO" target="_blank" rel="noopener">View on GitHub →</a>
+      </footer>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    <script type="module" src="src/main.js"></script>
+  </body>
+  </html>

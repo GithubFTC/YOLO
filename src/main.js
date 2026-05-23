@@ -23,9 +23,7 @@
  *           └── unknown_detections/0003_unknown_0.51_<timestamp>.png
  */
 
-// ============================================================
-// DOM
-// ============================================================
+
 const vid         = document.getElementById('vid');
 const overlay     = document.getElementById('overlay');
 const proc        = document.getElementById('proc');
@@ -84,9 +82,7 @@ const clipOut     = document.getElementById('clip-val');
 const gapSlider   = document.getElementById('gap');
 const gapOut      = document.getElementById('gap-val');
 
-// ============================================================
-// STATE
-// ============================================================
+
 let mode           = 'live';   // 'live' | 'upload'
 let stream         = null;
 let model          = null;
@@ -127,9 +123,7 @@ let compositeCanvas    = null;
 let compositeCtx       = null;
 let compositeStream    = null;
 
-// ============================================================
-// HELPERS
-// ============================================================
+
 const PALETTE = [
   '#4ade80', '#fbbf24', '#f87171', '#60a5fa',
   '#c084fc', '#f472b6', '#34d399', '#fb923c'
@@ -208,9 +202,7 @@ function drawBox(ctx, x, y, w, h, color, label) {
   ctx.fillText(label, x + padding, y - 6);
 }
 
-// ============================================================
-// MIME / RECORDER PICKING
-// ============================================================
+
 
 function pickMimeType() {
   const candidates = [
@@ -227,9 +219,6 @@ function pickMimeType() {
   return null;
 }
 
-// ============================================================
-// COMPOSITE CANVAS / STREAM SETUP
-// ============================================================
 
 function ensureComposite(w, h) {
   if (compositeCanvas && compositeCanvas.width === w && compositeCanvas.height === h) return;
@@ -246,9 +235,7 @@ function paintComposite() {
   compositeCtx.drawImage(overlay, 0, 0);
 }
 
-// ============================================================
-// DATASET CAPTURE
-// ============================================================
+
 
 async function saveDetectionFrame(prediction, unknownThreshold) {
   const isUnknown = prediction.score < unknownThreshold;
@@ -335,9 +322,7 @@ function renderFolders() {
   foldersEl.innerHTML = cards.join('');
 }
 
-// ============================================================
-// FULL-SESSION RECORDING
-// ============================================================
+
 
 function startFullRecording() {
   if (!compositeStream) return false;
@@ -381,9 +366,6 @@ function stopFullRecording() {
   });
 }
 
-// ============================================================
-// PER-DETECTION CLIP RECORDING
-// ============================================================
 
 function startClipRecording(className) {
   if (clipActive || !compositeStream) return;
@@ -446,9 +428,6 @@ function forceStopClip() {
   }
 }
 
-// ============================================================
-// DOWNLOAD (ZIP BUILDER)
-// ============================================================
 
 function enableDownload(on) {
   btnDownload.disabled    = !on;
@@ -541,9 +520,6 @@ ${Object.entries(manifest.classes).map(([k, v]) => `  ${k}: ${v}`).join('\n') ||
   enableDownload(true);
 }
 
-// ============================================================
-// MODEL LOAD
-// ============================================================
 
 async function ensureModel() {
   if (model) return true;
@@ -557,9 +533,6 @@ async function ensureModel() {
   }
 }
 
-// ============================================================
-// LIVE MODE
-// ============================================================
 
 async function startLive() {
   if (running) return;
@@ -664,9 +637,7 @@ async function stopLive() {
   statusEl.textContent = 'Stopped. Data preserved — Download dataset when ready.';
 }
 
-// ============================================================
-// UPLOAD MODE
-// ============================================================
+ 
 
 function chooseFile() {
   fileInput.value = '';
@@ -758,9 +729,7 @@ async function finishUpload() {
   statusEl.textContent = `Processing complete. ${totalSaved()} frames + ${clips.length} clips captured.`;
 }
 
-// ============================================================
-// MAIN DETECTION LOOP (shared between live + upload)
-// ============================================================
+
 
 async function loop() {
   if (!running) return;
@@ -849,9 +818,7 @@ async function loop() {
   requestAnimationFrame(loop);
 }
 
-// ============================================================
-// SNAPSHOT
-// ============================================================
+ 
 
 function captureSnapshot() {
   const out = document.createElement('canvas');
@@ -870,9 +837,7 @@ function captureSnapshot() {
   });
 }
 
-// ============================================================
-// MODE SWITCHING
-// ============================================================
+ 
 
 function setMode(newMode) {
   if (newMode === mode) return;
@@ -909,10 +874,7 @@ function setMode(newMode) {
     : 'Upload mode — choose a video file';
 }
 
-// ============================================================
-// WIRE UP
-// ============================================================
-
+ 
 modeLiveBtn  .addEventListener('click', () => setMode('live'));
 modeUploadBtn.addEventListener('click', () => setMode('upload'));
 

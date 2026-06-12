@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Subsea Detect — Underwater Object Detection</title>
+  <style>
+    :root {
+      --bg: #0b1220;
+      --panel: #131c2e;
+      --panel-light: #1b2740;
+      --line: #26344f;
+      --line-soft: #1e2a42;
+      --text: #e8edf6;
+      --text-dim: #9aa8c2;
+      --text-faint: #5f6f8c;
+      --accent: #34b3d4;
+      --accent-dark: #1d7e98;
+      --bad: #d65f53;
+      --radius: 8px;
+      --mono: "SF Mono", "JetBrains Mono", Consolas, ui-monospace, monospace;
+      --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 14px; line-height: 1.5; padding: 24px 16px; min-height: 100vh; }
+    .wrap { max-width: 920px; margin: 0 auto; }
+
+    header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
+    .logo { display: flex; align-items: center; gap: 12px; }
+    .logo .badge { width: 38px; height: 38px; border-radius: var(--radius); background: var(--accent-dark); display: flex; align-items: center; justify-content: center; font-size: 20px; }
+    .logo h1 { font-size: 18px; font-weight: 600; letter-spacing: -0.2px; }
+    .logo p { font-size: 12px; color: var(--text-dim); }
+
+    .stats { display: flex; gap: 10px; }
+    .stat { background: var(--panel); border: 1px solid var(--line-soft); border-radius: var(--radius); padding: 8px 14px; min-width: 74px; text-align: center; }
+    .stat .label { font-size: 10px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.6px; }
+    .stat .value { font-size: 18px; font-weight: 600; font-family: var(--mono); margin-top: 2px; }
+
+    .tabs { display: flex; gap: 4px; background: var(--panel); border: 1px solid var(--line-soft); border-radius: var(--radius); padding: 4px; margin-bottom: 14px; }
+    .tab { flex: 1; padding: 9px; border: none; background: transparent; color: var(--text-dim); font-size: 13px; font-weight: 500; border-radius: 6px; cursor: pointer; font-family: var(--sans); }
+    .tab.active { background: var(--panel-light); color: var(--text); }
+
+    .screen { position: relative; aspect-ratio: 16 / 10; background: #060b15; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+    .screen video, .screen canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+    #overlay { pointer-events: none; }
+
+    .placeholder { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: var(--text-faint); text-align: center; padding: 20px; }
+    .placeholder .icon { font-size: 36px; opacity: 0.6; }
+    .placeholder .big { font-size: 15px; color: var(--text-dim); font-weight: 500; }
+    .placeholder .small { font-size: 12px; }
+
+    .corner-info { position: absolute; top: 12px; left: 12px; font-family: var(--mono); font-size: 11px; color: var(--accent); line-height: 1.7; text-shadow: 0 1px 3px rgba(0,0,0,0.6); pointer-events: none; }
+    .rec-dot { display: none; position: absolute; top: 12px; right: 12px; align-items: center; gap: 6px; font-family: var(--mono); font-size: 11px; font-weight: 600; color: #fff; background: var(--bad); padding: 3px 9px; border-radius: 20px; }
+    .rec-dot.on { display: flex; }
+    .rec-dot::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #fff; animation: blink 1s infinite; }
+    @keyframes blink { 50% { opacity: 0.25; } }
+
+    .loadbar { display: none; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: rgba(255,255,255,0.1); }
+    .loadbar.on { display: block; }
+    .loadbar > div { height: 100%; width: 0; background: var(--accent); transition: width 0.2s; }
+
+    .buttons { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; align-items: center; }
+    button.action { padding: 10px 16px; border: 1px solid var(--line); background: var(--panel-light); color: var(--text); font-size: 13px; font-weight: 500; border-radius: var(--radius); cursor: pointer; font-family: var(--sans); transition: background 0.15s, border-color 0.15s; }
+    button.action:hover:not(:disabled) { background: #243352; border-color: var(--accent-dark); }
+    button.action:disabled { opacity: 0.4; cursor: not-allowed; }
+    button.primary { background: var(--accent-dark); border-color: var(--accent); }
+    button.primary:hover:not(:disabled) { background: var(--accent); }
+    button.recording { background: var(--bad); border-color: var(--bad); color: #fff; }
+
+    .switch { display: flex; align-items: center; gap: 8px; margin-left: auto; font-size: 13px; color: var(--text-dim); cursor: pointer; user-select: none; }
+    .switch input { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
+
+    .hint { margin-top: 12px; font-size: 13px; color: var(--text-dim); background: var(--panel); border: 1px solid var(--line-soft); border-left: 3px solid var(--accent); border-radius: 0 var(--radius) var(--radius) 0; padding: 10px 14px; }
+
+    details.settings { margin-top: 14px; background: var(--panel); border: 1px solid var(--line-soft); border-radius: var(--radius); }
+    details.settings > summary { padding: 12px 16px; cursor: pointer; font-weight: 500; font-size: 13px; color: var(--text-dim); list-style: none; }
+    details.settings > summary::-webkit-details-marker { display: none; }
+    details.settings > summary::before { content: "\25B8  "; color: var(--text-faint); }
+    details.settings[open] > summary::before { content: "\25BE  "; }
+    .sliders { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; padding: 4px 16px 18px; }
+    .slider label { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-dim); margin-bottom: 6px; }
+    .slider label b { color: var(--accent); font-family: var(--mono); font-weight: 600; }
+    .slider input[type=range] { width: 100%; accent-color: var(--accent); }
+
+    .section-title { font-size: 12px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-faint); margin: 22px 0 10px; }
+    .folders { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+    .folder { display: flex; align-items: center; gap: 10px; background: var(--panel); border: 1px solid var(--line-soft); border-left: 3px solid var(--accent); border-radius: 6px; padding: 10px 12px; }
+    .folder .fi { font-size: 18px; }
+    .folder .fname { font-family: var(--mono); font-size: 13px; }
+    .folder .fcount { font-size: 11px; color: var(--text-faint); }
+    .empty-note { color: var(--text-faint); font-size: 13px; padding: 4px 2px; }
+
+    .log { margin-top: 10px; background: #0a101d; border: 1px solid var(--line-soft); border-radius: var(--radius); padding: 12px 14px; font-family: var(--mono); font-size: 12px; line-height: 1.7; max-height: 170px; overflow-y: auto; }
+    .log .dim { color: var(--text-faint); }
+
+    footer { margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--line-soft); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; font-size: 12px; color: var(--text-faint); }
+    footer a { color: var(--accent); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+
+    <header>
+      <div class="logo">
+        <div class="badge">🌊</div>
+        <div>
+          <h1>Subsea Detect</h1>
+          <p>Underwater object detection · runs in your browser</p>
+        </div>
+      </div>
+      <div class="stats">
+        <div class="stat"><div class="label">FPS</div><div class="value" id="fps">—</div></div>
+        <div class="stat"><div class="label">Objects</div><div class="value" id="objects">0</div></div>
+        <div class="stat"><div class="label">Saved</div><div class="value" id="saved">0</div></div>
+        <div class="stat"><div class="label">Clips</div><div class="value" id="clips">0</div></div>
+      </div>
+    </header>
+
+    <div class="tabs">
+      <button class="tab active" id="tab-live">📷 Live camera</button>
+      <button class="tab" id="tab-file">🎬 Upload a video</button>
+    </div>
+
+    <div class="screen">
+      <video id="video" autoplay playsinline muted></video>
+      <canvas id="overlay"></canvas>
+      <canvas id="work" hidden></canvas>
+
+      <div class="corner-info">
+        <div>SUBSEA DETECT</div>
+        <div id="info-state">Ready</div>
+        <div id="info-time">00:00</div>
+      </div>
+
+      <div class="rec-dot" id="rec">REC</div>
+
+      <div class="placeholder" id="placeholder">
+        <div class="icon">🎥</div>
+        <div class="big" id="ph-big">Camera is off</div>
+        <div class="small" id="ph-small">Press &ldquo;Start camera&rdquo; below to begin</div>
+      </div>
+
+      <div class="loadbar" id="loadbar"><div id="loadfill"></div></div>
+    </div>
+
+    <input type="file" id="file-picker" accept="video/*" hidden>
+
+    <div class="buttons" id="live-buttons">
+      <button class="action primary" id="btn-start">Start camera</button>
+      <button class="action" id="btn-stop" disabled>Stop</button>
+      <button class="action" id="btn-record" disabled>● Record</button>
+      <button class="action" id="btn-snap" disabled>Save photo</button>
+      <button class="action" id="btn-download" disabled>⬇ Download everything</button>
+      <label class="switch"><input type="checkbox" id="fix-live" checked> Underwater color fix</label>
+    </div>
+
+    <div class="buttons" id="file-buttons" hidden>
+      <button class="action primary" id="btn-pick">Choose video file</button>
+      <button class="action" id="btn-run" disabled>Run detection</button>
+      <button class="action" id="btn-halt" disabled>Stop</button>
+      <button class="action" id="btn-download2" disabled>⬇ Download everything</button>
+      <label class="switch"><input type="checkbox" id="fix-file" checked> Underwater color fix</label>
+    </div>
+
+    <div class="hint" id="hint">Pick a mode above, then press the blue button to begin.</div>
+
+    <details class="settings">
+      <summary>Settings</summary>
+      <div class="sliders">
+        <div class="slider"><label>Detection sensitivity <b id="conf-out">0.40</b></label><input type="range" id="conf" min="10" max="90" value="40" step="5"></div>
+        <div class="slider"><label>Red color boost <b id="red-out">1.6×</b></label><input type="range" id="red" min="10" max="30" value="16" step="1"></div>
+        <div class="slider"><label>&ldquo;Unknown&rdquo; cutoff <b id="unk-out">0.55</b></label><input type="range" id="unk" min="20" max="80" value="55" step="5"></div>
+        <div class="slider"><label>Save 1 frame every <b id="rate-out">15</b></label><input type="range" id="rate" min="1" max="60" value="15" step="1"></div>
+        <div class="slider"><label>Clip length <b id="clip-out">3s</b></label><input type="range" id="clip" min="1" max="10" value="3" step="1"></div>
+        <div class="slider"><label>Gap between clips <b id="gap-out">2s</b></label><input type="range" id="gap" min="0" max="10" value="2" step="1"></div>
+      </div>
+    </details>
+
+    <div class="section-title">Captured dataset</div>
+    <div class="folders" id="folders"></div>
+    <div class="empty-note" id="folders-empty">Nothing captured yet — start recording to build a dataset.</div>
+
+    <div class="section-title">Detection log</div>
+    <div class="log" id="log"><span class="dim">Waiting to start…</span></div>
+
+    <footer>
+      <span>Everything runs on your device. Nothing is uploaded anywhere.</span>
+      <a href="https://github.com/GithubFTC/YOLO" target="_blank" rel="noopener">View on GitHub →</a>
+    </footer>
+
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script>
+  (function () {
+    "use strict";
+    const $ = id => document.getElementById(id);
+    const video = $("video"), overlay = $("overlay"), work = $("work");
+    const octx = overlay.getContext("2d"), wctx = work.getContext("2d", { willReadFrequently: true });
+    const fpsEl = $("fps"), objEl = $("objects"), savedEl = $("saved"), clipEl = $("clips");
+    const placeholder = $("placeholder"), phBig = $("ph-big"), phSmall = $("ph-small");
+    const infoState = $("info-state"), infoTime = $("info-time");
+    const rec = $("rec"), loadbar = $("loadbar"), loadfill = $("loadfill");
+    const hint = $("hint"), logEl = $("log");
+    const foldersEl = $("folders"), foldersEmpty = $("folders-empty");
+    const tabLive = $("tab-live"), tabFile = $("tab-file");
+    const liveButtons = $("live-buttons"), fileButtons = $("file-buttons"), filePicker = $("file-picker");
+    const btnStart = $("btn-start"), btnStop = $("btn-stop"), btnRecord = $("btn-record");
+    const btnSnap = $("btn-snap"), btnDownload = $("btn-download");
+    const btnPick = $("btn-pick"), btnRun = $("btn-run"), btnHalt = $("btn-halt"), btnDownload2 = $("btn-download2");
+    const fixLive = $("fix-live"), fixFile = $("fix-file");
+    const conf = $("conf"), red = $("red"), unk = $("unk"), rate = $("rate"), clip = $("clip"), gap = $("gap");
+    const confOut = $("conf-out"), redOut = $("red-out"), unkOut = $("unk-out"), rateOut = $("rate-out"), clipOut = $("clip-out"), gapOut = $("gap-out");
+
+    let mode = "live", model = null, stream = null, fileURL = null;
+    let running = false, recording = false;
+    let frames = 0, fpsAvg = 0, lastT = performance.now(), startT = 0, saveCount = 0, clipNum = 0;
+    const dataset = new Map(), clipFiles = [];
+    let fullRec = null, fullChunks = [], fullMime = "", fullExt = "webm";
+    let clipRec = null, clipChunks = [], clipBusy = false, clipTimer = null, lastClipEnd = -1e9, clipClass = "";
+    let mixCanvas = null, mixCtx = null, mixStream = null;
+
+    const COLORS = ["#34b3d4","#4caf7d","#e0a44a","#b07de0","#e06d9c","#5d9ce0","#d65f53","#6dc7b8"];
+    const colorFor = c => { if (c === "unknown") return "#d65f53"; let h = 0; for (const ch of c) h = (h*31 + ch.charCodeAt(0)) >>> 0; return COLORS[h % COLORS.length]; };
+    const stamp = () => new Date().toISOString().replace(/[:.]/g,"-").slice(0,19);
+    const clean = s => s.replace(/[^a-z0-9_-]+/gi,"_").toLowerCase();
+    const mmss = s => `${String(Math.floor(s/60)).padStart(2,"0")}:${String(Math.floor(s%60)).padStart(2,"0")}`;
+    const setHint = t => hint.textContent = t;
+    const setState = t => infoState.textContent = t;
+    const logLines = l => logEl.innerHTML = l.length ? l.join("") : '<span class="dim">Scanning… nothing detected yet.</span>';
+
+    function fixColor(img, boost) {
+      const d = img.data, n = d.length/4; let r=0,g=0,b=0;
+      for (let i=0;i<d.length;i+=4){ r+=d[i]; g+=d[i+1]; b+=d[i+2]; }
+      r/=n; g/=n; b/=n; const gray=(r+g+b)/3;
+      const gr=(gray/Math.max(r,1))*boost, gg=gray/Math.max(g,1), gb=(gray/Math.max(b,1))*0.85;
+      for (let i=0;i<d.length;i+=4){ d[i]=Math.min(255,d[i]*gr); d[i+1]=Math.min(255,d[i+1]*gg); d[i+2]=Math.min(255,d[i+2]*gb); }
+      return img;
+    }
+    function drawBox(ctx,x,y,w,h,color,label){
+      const c=Math.min(18,w/4,h/4); ctx.strokeStyle=color; ctx.lineWidth=2.5; ctx.beginPath();
+      ctx.moveTo(x,y+c);ctx.lineTo(x,y);ctx.lineTo(x+c,y);
+      ctx.moveTo(x+w-c,y);ctx.lineTo(x+w,y);ctx.lineTo(x+w,y+c);
+      ctx.moveTo(x+w,y+h-c);ctx.lineTo(x+w,y+h);ctx.lineTo(x+w-c,y+h);
+      ctx.moveTo(x+c,y+h);ctx.lineTo(x,y+h);ctx.lineTo(x,y+h-c); ctx.stroke();
+      ctx.globalAlpha=0.3; ctx.strokeRect(x,y,w,h); ctx.globalAlpha=1;
+      ctx.font="600 13px "+getComputedStyle(document.body).fontFamily;
+      const tw=ctx.measureText(label).width+10; ctx.fillStyle=color; ctx.fillRect(x,y-19,tw,18);
+      ctx.fillStyle="#0b1220"; ctx.fillText(label,x+5,y-5);
+    }
+    function pickMime(){
+      const list=[["video/mp4;codecs=h264,aac","mp4"],["video/mp4","mp4"],["video/webm;codecs=vp9,opus","webm"],["video/webm","webm"]];
+      for (const [m,e] of list) if (window.MediaRecorder && MediaRecorder.isTypeSupported(m)) return [m,e];
+      return null;
+    }
+    function setupMix(w,h){ if (mixCanvas && mixCanvas.width===w && mixCanvas.height===h) return; mixCanvas=document.createElement("canvas"); mixCanvas.width=w; mixCanvas.height=h; mixCtx=mixCanvas.getContext("2d"); mixStream=mixCanvas.captureStream(30); }
+    function paintMix(){ if (mixCtx){ mixCtx.drawImage(work,0,0); mixCtx.drawImage(overlay,0,0); } }
+
+    async function saveFrame(p,unkCut){
+      const isUnk=p.score<unkCut, cls=isUnk?"unknown":p.class, folder=isUnk?"unknown":clean(p.class);
+      const tmp=document.createElement("canvas"); tmp.width=work.width; tmp.height=work.height;
+      const t=tmp.getContext("2d"); t.drawImage(work,0,0); t.drawImage(overlay,0,0);
+      const blob=await new Promise(r=>tmp.toBlob(r,"image/png")); if (!blob) return;
+      saveCount++; const name=`${String(saveCount).padStart(4,"0")}_${cls}_${p.score.toFixed(2)}.png`;
+      if (!dataset.has(folder)) dataset.set(folder,[]); dataset.get(folder).push({name,blob});
+      savedEl.textContent=totalSaved(); enableDownload(); drawFolders();
+    }
+    function totalSaved(){ let n=0; for (const a of dataset.values()) n+=a.length; return n; }
+    function drawFolders(){
+      const has=dataset.size||clipFiles.length; foldersEmpty.style.display=has?"none":"block";
+      const cards=[];
+      if (clipFiles.length) cards.push(`<div class="folder" style="border-left-color:#5d9ce0"><span class="fi">🎬</span><div><div class="fname">clips</div><div class="fcount">${clipFiles.length} clip${clipFiles.length>1?"s":""}</div></div></div>`);
+      const names=[...dataset.keys()].sort((a,b)=>a==="unknown"?1:b==="unknown"?-1:a.localeCompare(b));
+      for (const f of names){ const col=colorFor(f); const n=dataset.get(f).length;
+        cards.push(`<div class="folder" style="border-left-color:${col}"><span class="fi">${f==="unknown"?"❓":"📁"}</span><div><div class="fname">${f}</div><div class="fcount">${n} photo${n>1?"s":""}</div></div></div>`); }
+      foldersEl.innerHTML=cards.join("");
+    }
+    function enableDownload(){ btnDownload.disabled=false; btnDownload2.disabled=false; }
+
+    function startFull(){
+      if (!mixStream) return false; const m=pickMime(); if (!m){ setHint("Recording isn’t supported in this browser."); return false; }
+      [fullMime,fullExt]=m; fullChunks=[];
+      try { fullRec=new MediaRecorder(mixStream,{mimeType:fullMime,videoBitsPerSecond:2500000}); } catch(e){ setHint("Couldn’t start recording: "+e.message); return false; }
+      fullRec.ondataavailable=e=>{ if (e.data.size) fullChunks.push(e.data); }; fullRec.start(1000); return true;
+    }
+    function stopFull(){ return new Promise(res=>{ if (!fullRec||fullRec.state==="inactive") return res(fullChunks.length?new Blob(fullChunks,{type:fullMime}):null); fullRec.onstop=()=>res(fullChunks.length?new Blob(fullChunks,{type:fullMime}):null); fullRec.stop(); }); }
+
+    function startClip(cls){
+      if (clipBusy||!mixStream) return; const now=performance.now(); if (now-lastClipEnd<(+gap.value)*1000) return;
+      const m=pickMime(); if (!m) return; const [mime]=m; clipChunks=[]; clipClass=cls;
+      try { clipRec=new MediaRecorder(mixStream,{mimeType:mime,videoBitsPerSecond:2500000}); } catch { return; }
+      clipRec.ondataavailable=e=>{ if (e.data.size) clipChunks.push(e.data); };
+      clipRec.onstop=()=>{ if (clipChunks.length){ clipNum++; const f=clipClass==="unknown"?"unknown":clean(clipClass); clipFiles.push({name:`${f}_${String(clipNum).padStart(4,"0")}.${fullExt}`,blob:new Blob(clipChunks,{type:mime})}); clipEl.textContent=clipFiles.length; drawFolders(); enableDownload(); } clipBusy=false; lastClipEnd=performance.now(); };
+      clipRec.start(); clipBusy=true; clearTimeout(clipTimer); clipTimer=setTimeout(()=>{ if (clipRec&&clipRec.state!=="inactive") clipRec.stop(); },(+clip.value)*1000);
+    }
+    function killClip(){ clearTimeout(clipTimer); if (clipRec&&clipRec.state!=="inactive") clipRec.stop(); }
+
+    async function downloadAll(){
+      if (!totalSaved()&&!clipFiles.length&&!fullChunks.length){ setHint("Nothing to download yet."); return; }
+      setHint("Packaging your download…"); btnDownload.disabled=btnDownload2.disabled=true; killClip();
+      let fullBlob=null; if (fullRec&&fullRec.state!=="inactive") fullBlob=await stopFull(); else if (fullChunks.length) fullBlob=new Blob(fullChunks,{type:fullMime});
+      const zip=new JSZip(), root=zip.folder("subsea-capture");
+      if (fullBlob) root.file(`full-video.${fullExt}`,fullBlob);
+      if (clipFiles.length){ const cf=root.folder("clips"); clipFiles.forEach(c=>cf.file(c.name,c.blob)); }
+      const dr=root.folder("photos"); const manifest={created:new Date().toISOString(),totalPhotos:totalSaved(),clips:clipFiles.length,folders:{}};
+      for (const [f,items] of dataset){ const sub=dr.folder(f); manifest.folders[f]=items.length; items.forEach(i=>sub.file(i.name,i.blob)); }
+      root.file("info.json",JSON.stringify(manifest,null,2));
+      const blob=await zip.generateAsync({type:"blob"},m=>setHint(`Packaging… ${Math.round(m.percent)}%`));
+      const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=`subsea-capture-${stamp()}.zip`; a.click();
+      setTimeout(()=>URL.revokeObjectURL(a.href),4000); setHint("Download ready! Check your downloads folder."); btnDownload.disabled=btnDownload2.disabled=false;
+    }
+
+    async function getModel(){ if (model) return true; setHint("Loading the detection model… (first time takes a few seconds)"); try { model=await cocoSsd.load({base:"lite_mobilenet_v2"}); return true; } catch(e){ setHint("Couldn’t load the model: "+e.message); return false; } }
+
+    async function startCamera(){
+      if (running) return; if (!(await getModel())) return;
+      video.onloadedmetadata=null; video.onended=null; video.pause(); video.removeAttribute("src"); video.load(); video.muted=true; video.playsInline=true;
+      setHint("Asking for camera permission…");
+      const tries=[{video:{facingMode:{ideal:"environment"}},audio:false},{video:{facingMode:"user"},audio:false},{video:true,audio:false}];
+      let err=null; for (const t of tries){ try { stream=await navigator.mediaDevices.getUserMedia(t); break; } catch(e){ err=e; stream=null; } }
+      if (!stream){ setHint(`Camera didn’t start: ${err?err.name:"no camera"}. Check the camera permission in your browser’s address bar.`); return; }
+      try { video.srcObject=stream; await new Promise((res,rej)=>{ const to=setTimeout(()=>rej(new Error("timeout")),6000); video.onloadedmetadata=()=>{ clearTimeout(to); res(); }; }); await video.play(); }
+      catch(e){ setHint("Camera connected but won’t play: "+e.message); stream.getTracks().forEach(t=>t.stop()); stream=null; return; }
+      video.style.transform="scaleX(-1)"; sizeCanvases(video.videoWidth||640,video.videoHeight||480); placeholder.style.display="none";
+      running=true; startT=performance.now(); btnStart.disabled=true; btnStop.disabled=false; btnRecord.disabled=false; btnSnap.disabled=false;
+      setState("Live"); setHint("Camera is live. Press “● Record” to start saving video, photos, and clips."); loop();
+    }
+    async function stopCamera(){
+      running=false; if (recording){ killClip(); await stopFull(); recording=false; rec.classList.remove("on"); btnRecord.textContent="● Record"; btnRecord.classList.remove("recording"); }
+      if (stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; } video.srcObject=null; octx.clearRect(0,0,overlay.width,overlay.height); placeholder.style.display="flex";
+      btnStart.disabled=false; btnStop.disabled=true; btnRecord.disabled=true; btnSnap.disabled=true; setState("Ready"); objEl.textContent="0"; fpsEl.textContent="—";
+      setHint("Stopped. Your captured data is still here — press “Download everything” to save it.");
+    }
+
+    function pickFile(){ filePicker.value=""; filePicker.click(); }
+    filePicker.addEventListener("change",()=>{
+      const f=filePicker.files[0]; if (!f) return; if (fileURL) URL.revokeObjectURL(fileURL); fileURL=URL.createObjectURL(f);
+      video.onloadedmetadata=null; video.onended=null; video.pause(); video.srcObject=null; video.style.transform="none"; video.muted=true; video.src=fileURL; video.load();
+      video.onloadedmetadata=()=>{ placeholder.style.display="flex"; phBig.textContent=f.name; phSmall.textContent=`${(f.size/1048576).toFixed(1)} MB · ${Math.round(video.duration)}s — press “Run detection”`; btnRun.disabled=false; setHint(`Loaded “${f.name}”. Press “Run detection” to process it.`); };
+    });
+    async function runFile(){
+      if (!fileURL){ setHint("Choose a video file first."); return; } if (!(await getModel())) return;
+      sizeCanvases(video.videoWidth||640,video.videoHeight||480); placeholder.style.display="none"; loadbar.classList.add("on"); loadfill.style.width="0%";
+      running=true; recording=true; startT=performance.now(); setState("Processing"); rec.classList.add("on"); btnRun.disabled=true; btnHalt.disabled=false; btnPick.disabled=true;
+      setHint("Processing the video — detections and clips are being saved as it plays."); startFull(); video.currentTime=0; await video.play(); video.onended=endFile; loop();
+    }
+    async function haltFile(){ if (running){ running=false; await endFile(); } }
+    async function endFile(){
+      killClip(); if (fullRec&&fullRec.state!=="inactive") await stopFull(); recording=false; rec.classList.remove("on"); loadbar.classList.remove("on"); setState("Ready"); video.pause();
+      btnRun.disabled=!fileURL; btnHalt.disabled=true; btnPick.disabled=false; setHint(`Done! Saved ${totalSaved()} photos and ${clipFiles.length} clips. Press “Download everything”.`);
+    }
+
+    function sizeCanvases(w,h){ overlay.width=work.width=w; overlay.height=work.height=h; setupMix(w,h); }
+    function currentFix(){ return mode==="file"?fixFile.checked:fixLive.checked; }
+
+    async function loop(){
+      if (!running) return; const now=performance.now(), dt=now-lastT; lastT=now; frames++;
+      fpsAvg=fpsAvg?fpsAvg*0.9+(1000/dt)*0.1:1000/dt; if (frames%5===0) fpsEl.textContent=fpsAvg.toFixed(0); infoTime.textContent=mmss((now-startT)/1000);
+      if (mode==="live"){ wctx.save(); wctx.scale(-1,1); wctx.drawImage(video,-work.width,0,work.width,work.height); wctx.restore(); }
+      else { wctx.drawImage(video,0,0,work.width,work.height); if (video.duration) loadfill.style.width=`${(video.currentTime/video.duration)*100}%`; }
+      if (currentFix()){ const im=wctx.getImageData(0,0,work.width,work.height); fixColor(im,+red.value/10); wctx.putImageData(im,0,0); }
+      const thr=+conf.value/100, unkCut=+unk.value/100, every=+rate.value;
+      let preds=[]; try { preds=await model.detect(work,20,thr); } catch {}
+      octx.clearRect(0,0,overlay.width,overlay.height); const lines=[]; let count=0, top=null;
+      for (const p of preds){ if (p.score<thr) continue; count++; const [x,y,w,h]=p.bbox; const isUnk=p.score<unkCut; const cls=isUnk?"unknown":p.class; const col=isUnk?"#d65f53":colorFor(p.class);
+        drawBox(octx,x,y,w,h,col,`${cls} ${(p.score*100).toFixed(0)}%`); if (!top||p.score>top.score) top={...p,cls};
+        lines.push(`<div style="color:${col}">▸ ${cls} — ${(p.score*100).toFixed(0)}%${isUnk?"  → unknown":""}</div>`); }
+      paintMix();
+      if (recording&&count&&frames%every===0) for (const p of preds) if (p.score>=thr) saveFrame(p,unkCut);
+      if (recording&&top&&!clipBusy) startClip(top.cls);
+      objEl.textContent=count; logLines(lines); requestAnimationFrame(loop);
+    }
+
+    function snap(){ const c=document.createElement("canvas"); c.width=overlay.width; c.height=overlay.height; const x=c.getContext("2d"); x.drawImage(work,0,0); x.drawImage(overlay,0,0); c.toBlob(b=>{ const a=document.createElement("a"); a.href=URL.createObjectURL(b); a.download=`photo-${stamp()}.png`; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),2000); }); }
+
+    function switchMode(m){
+      if (running){ setHint("Please press Stop before switching modes."); return; }
+      mode=m; tabLive.classList.toggle("active",m==="live"); tabFile.classList.toggle("active",m==="file"); liveButtons.hidden=m!=="live"; fileButtons.hidden=m!=="file";
+      video.onloadedmetadata=null; video.onended=null; video.pause(); video.srcObject=null; video.removeAttribute("src"); video.load(); octx.clearRect(0,0,overlay.width,overlay.height); placeholder.style.display="flex";
+      if (m==="live"){ phBig.textContent="Camera is off"; phSmall.textContent='Press “Start camera” below to begin'; video.style.transform="scaleX(-1)"; setHint("Live camera mode. Press “Start camera”."); }
+      else { phBig.textContent="No video loaded"; phSmall.textContent='Press “Choose video file” below'; video.style.transform="none"; setHint("Upload mode. Choose a video file to analyze."); }
+      setState("Ready");
+    }
+
+    tabLive.onclick=()=>switchMode("live"); tabFile.onclick=()=>switchMode("file");
+    btnStart.onclick=startCamera; btnStop.onclick=stopCamera; btnSnap.onclick=snap;
+    btnDownload.onclick=downloadAll; btnDownload2.onclick=downloadAll;
+    btnPick.onclick=pickFile; btnRun.onclick=runFile; btnHalt.onclick=haltFile;
+    btnRecord.onclick=()=>{ if (!recording){ if (startFull()){ recording=true; rec.classList.add("on"); btnRecord.textContent="■ Stop recording"; btnRecord.classList.add("recording"); enableDownload(); setHint("Recording! Video, photos, and clips are being saved."); } } else { killClip(); stopFull(); recording=false; rec.classList.remove("on"); btnRecord.textContent="● Record"; btnRecord.classList.remove("recording"); setHint("Recording stopped. Press “Download everything” to save."); } };
+    conf.oninput=()=>confOut.textContent=(+conf.value/100).toFixed(2);
+    red.oninput=()=>redOut.textContent=(+red.value/10).toFixed(1)+"×";
+    unk.oninput=()=>unkOut.textContent=(+unk.value/100).toFixed(2);
+    rate.oninput=()=>rateOut.textContent=rate.value;
+    clip.oninput=()=>clipOut.textContent=clip.value+"s";
+    gap.oninput=()=>gapOut.textContent=gap.value+"s";
+    switchMode("live");
+  })();
+  </script>
+</body>
+</html>

@@ -16,6 +16,8 @@
       --text-faint: #5f6f8c;
       --accent: #34b3d4;
       --accent-dark: #1d7e98;
+      --good: #4caf7d;
+      --warn: #e0a44a;
       --bad: #d65f53;
       --radius: 8px;
       --mono: "SF Mono", "JetBrains Mono", Consolas, ui-monospace, monospace;
@@ -96,6 +98,49 @@
     footer { margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--line-soft); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; font-size: 12px; color: var(--text-faint); }
     footer a { color: var(--accent); text-decoration: none; }
     footer a:hover { text-decoration: underline; }
+    /* Top-level page switch */
+    .page-switch { display: flex; gap: 6px; margin-bottom: 14px; }
+    .page-switch .page-btn { flex: 1; padding: 11px; border: 1px solid var(--line); background: var(--panel); color: var(--text-dim); font-size: 14px; font-weight: 600; border-radius: var(--radius); cursor: pointer; font-family: var(--sans); }
+    .page-switch .page-btn.active { background: var(--accent-dark); border-color: var(--accent); color: #fff; }
+
+    /* Servo: connection bar */
+    .conn { display: flex; align-items: center; gap: 10px; background: var(--panel); border: 1px solid var(--line-soft); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 16px; flex-wrap: wrap; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--text-faint); flex-shrink: 0; }
+    .dot.on { background: var(--good); box-shadow: 0 0 0 3px rgba(76,175,125,0.2); }
+    .conn-label { flex: 1; font-size: 13px; min-width: 120px; }
+    .conn-label b { color: var(--text); }
+
+    /* Servo: cards */
+    .servo-card { background: var(--panel); border: 1px solid var(--line-soft); border-radius: var(--radius); padding: 18px; margin-bottom: 16px; }
+    .servo-card h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .6px; color: var(--text-faint); margin-bottom: 14px; }
+
+    .run-row { display: flex; gap: 10px; }
+    .run-row input[type=number] { flex: 1; font-family: var(--mono); font-size: 22px; padding: 12px 16px; background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius); color: var(--text); text-align: center; }
+    .run-row input:focus { outline: none; border-color: var(--accent); }
+    .run-row button { font-size: 16px; padding: 12px 24px; }
+
+    .quick { display: flex; gap: 6px; margin-top: 12px; flex-wrap: wrap; }
+    .quick button { flex: 1; min-width: 56px; font-family: var(--mono); }
+
+    .sv-stop { width: 100%; margin-top: 12px; background: var(--bad); border-color: var(--bad); color: #fff; }
+    .sv-stop:hover:not(:disabled) { background: #c44a3e; }
+
+    .cal { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .cal .field label { display: block; font-size: 12px; color: var(--text-dim); margin-bottom: 6px; }
+    .cal .field label span { color: var(--text-faint); font-size: 11px; }
+    .cal .field input { width: 100%; font-family: var(--mono); font-size: 15px; padding: 9px 12px; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; color: var(--text); }
+    .cal .field input:focus { outline: none; border-color: var(--accent); }
+    .cal-note { font-size: 11px; color: var(--text-faint); margin-top: 10px; }
+
+    .console { background: #060b15; border: 1px solid var(--line-soft); border-radius: var(--radius); padding: 12px 14px; font-family: var(--mono); font-size: 12px; line-height: 1.7; height: 200px; overflow-y: auto; }
+    .console .line { white-space: pre-wrap; word-break: break-word; }
+    .console .tx { color: var(--accent); }
+    .console .rx { color: var(--text-dim); }
+    .console .sys { color: var(--text-faint); }
+    .console .err { color: var(--bad); }
+
+    .warn-box { background: rgba(224,164,74,.1); border: 1px solid var(--warn); border-radius: var(--radius); padding: 12px 14px; font-size: 13px; color: var(--text-dim); margin-bottom: 16px; }
+    .warn-box b { color: var(--warn); }
   </style>
 </head>
 <body>
@@ -116,6 +161,14 @@
         <div class="stat"><div class="label">Clips</div><div class="value" id="clips">0</div></div>
       </div>
     </header>
+
+    <div class="page-switch">
+      <button class="page-btn active" id="page-btn-detect">🌊 Detection</button>
+      <button class="page-btn" id="page-btn-servo">⚙️ Servo control</button>
+    </div>
+
+    <!-- ============ DETECTION PAGE ============ -->
+    <div id="page-detect">
 
     <div class="tabs">
       <button class="tab active" id="tab-live">📷 Live camera</button>
@@ -183,6 +236,74 @@
 
     <div class="section-title">Detection log</div>
     <div class="log" id="log"><span class="dim">Waiting to start…</span></div>
+
+    </div><!-- /page-detect -->
+
+    <!-- ============ SERVO CONTROL PAGE ============ -->
+    <div id="page-servo" hidden>
+
+      <div id="servo-unsupported" class="warn-box" style="display:none;">
+        <b>Heads up:</b> Servo control needs the Web Serial API, which works in
+        <b>Chrome</b> or <b>Edge</b> on a computer (not Safari, Firefox, or phones).
+      </div>
+
+      <div class="conn">
+        <div class="dot" id="sv-dot"></div>
+        <div class="conn-label" id="sv-conn-label">Not connected</div>
+        <button class="action primary" id="sv-connect">Connect Arduino</button>
+        <button class="action" id="sv-disconnect" disabled>Disconnect</button>
+      </div>
+
+      <div class="servo-card">
+        <h2>Run a length</h2>
+        <div class="run-row">
+          <input type="number" id="sv-length" placeholder="0" step="0.1" disabled>
+          <button class="action primary" id="sv-run" disabled>Move ▶</button>
+        </div>
+        <div class="quick">
+          <button class="action sv-q" data-v="1" disabled>1</button>
+          <button class="action sv-q" data-v="2" disabled>2</button>
+          <button class="action sv-q" data-v="5" disabled>5</button>
+          <button class="action sv-q" data-v="10" disabled>10</button>
+          <button class="action sv-q" data-v="20" disabled>20</button>
+        </div>
+        <button class="action sv-stop" id="sv-stop" disabled>■ STOP servo now</button>
+      </div>
+
+      <div class="servo-card">
+        <h2>Calibration (live — no re-flashing)</h2>
+        <div class="cal">
+          <div class="field">
+            <label>Stop signal <span>(default 92)</span></label>
+            <input type="number" id="sv-cal-stop" value="92" disabled>
+          </div>
+          <div class="field">
+            <label>Forward signal <span>(default 120)</span></label>
+            <input type="number" id="sv-cal-fwd" value="120" disabled>
+          </div>
+          <div class="field">
+            <label>ms per unit <span>(default 100)</span></label>
+            <input type="number" id="sv-cal-mspu" value="100" step="0.1" disabled>
+          </div>
+          <div class="field">
+            <label>Reverse signal <span>(default 64)</span></label>
+            <input type="number" id="sv-cal-rev" value="64" disabled>
+          </div>
+        </div>
+        <button class="action" id="sv-apply" disabled style="margin-top:14px;width:100%;">Apply calibration to Arduino</button>
+        <div class="cal-note">
+          Sends live commands to the Arduino. Requires the upgraded sketch
+          (servo_control.ino) flashed to your board. Values reset if the Arduino
+          is unplugged or reset.
+        </div>
+      </div>
+
+      <div class="servo-card">
+        <h2>Serial console</h2>
+        <div class="console" id="sv-console"></div>
+      </div>
+
+    </div><!-- /page-servo -->
 
     <footer>
       <span>Everything runs on your device. Nothing is uploaded anywhere.</span>
@@ -397,6 +518,142 @@
     clip.oninput=()=>clipOut.textContent=clip.value+"s";
     gap.oninput=()=>gapOut.textContent=gap.value+"s";
     switchMode("live");
+
+    // ============ PAGE SWITCHING (Detection <-> Servo) ============
+    const pageDetect = $("page-detect"), pageServo = $("page-servo");
+    const pageBtnDetect = $("page-btn-detect"), pageBtnServo = $("page-btn-servo");
+
+    function showPage(which) {
+      const onServo = which === "servo";
+      pageDetect.hidden = onServo;
+      pageServo.hidden = !onServo;
+      pageBtnDetect.classList.toggle("active", !onServo);
+      pageBtnServo.classList.toggle("active", onServo);
+      // If we leave detection while the camera is running, stop it cleanly
+      if (onServo && running) stopCamera();
+    }
+    pageBtnDetect.onclick = () => showPage("detect");
+    pageBtnServo.onclick = () => showPage("servo");
+
+    // ============ SERVO CONTROL (Web Serial) ============
+    const svDot = $("sv-dot"), svConnLabel = $("sv-conn-label");
+    const svConnect = $("sv-connect"), svDisconnect = $("sv-disconnect");
+    const svLength = $("sv-length"), svRun = $("sv-run"), svStop = $("sv-stop");
+    const svCalStop = $("sv-cal-stop"), svCalFwd = $("sv-cal-fwd"), svCalMspu = $("sv-cal-mspu"), svCalRev = $("sv-cal-rev");
+    const svApply = $("sv-apply"), svConsole = $("sv-console");
+    const svQuick = document.querySelectorAll(".sv-q");
+
+    let svPort = null, svWriter = null, svReader = null, svKeepReading = false;
+    const svEncoder = new TextEncoder(), svDecoder = new TextDecoder();
+
+    if (!("serial" in navigator)) {
+      $("servo-unsupported").style.display = "block";
+      svConnect.disabled = true;
+    }
+
+    function svLog(text, cls) {
+      const div = document.createElement("div");
+      div.className = "line " + (cls || "rx");
+      const prefix = cls === "tx" ? "→ " : cls === "sys" ? "• " : cls === "err" ? "✗ " : "← ";
+      div.textContent = prefix + text;
+      svConsole.appendChild(div);
+      svConsole.scrollTop = svConsole.scrollHeight;
+    }
+
+    function svSetConnected(on) {
+      svDot.classList.toggle("on", on);
+      svConnLabel.innerHTML = on ? "Connected to <b>Arduino</b>" : "Not connected";
+      svConnect.disabled = on;
+      svDisconnect.disabled = !on;
+      svLength.disabled = !on;
+      svRun.disabled = !on;
+      svStop.disabled = !on;
+      svApply.disabled = !on;
+      [svCalStop, svCalFwd, svCalMspu, svCalRev].forEach(el => el.disabled = !on);
+      svQuick.forEach(b => b.disabled = !on);
+    }
+
+    async function svConnectFn() {
+      try {
+        svPort = await navigator.serial.requestPort();
+        await svPort.open({ baudRate: 9600 });
+        svWriter = svPort.writable.getWriter();
+        svSetConnected(true);
+        svLog("Connected at 9600 baud", "sys");
+        svReadLoop();
+      } catch (e) {
+        svLog("Connect failed: " + e.message, "err");
+      }
+    }
+
+    async function svDisconnectFn() {
+      svKeepReading = false;
+      try {
+        if (svReader) { await svReader.cancel(); svReader.releaseLock(); svReader = null; }
+        if (svWriter) { svWriter.releaseLock(); svWriter = null; }
+        if (svPort) { await svPort.close(); svPort = null; }
+      } catch (e) {}
+      svSetConnected(false);
+      svLog("Disconnected", "sys");
+    }
+
+    async function svReadLoop() {
+      svKeepReading = true;
+      while (svPort && svPort.readable && svKeepReading) {
+        svReader = svPort.readable.getReader();
+        try {
+          let buffer = "";
+          while (true) {
+            const { value, done } = await svReader.read();
+            if (done) break;
+            buffer += svDecoder.decode(value, { stream: true });
+            let nl;
+            while ((nl = buffer.indexOf("\n")) >= 0) {
+              const line = buffer.slice(0, nl).replace(/\r$/, "");
+              buffer = buffer.slice(nl + 1);
+              if (line.trim()) svLog(line, "rx");
+            }
+          }
+        } catch (e) {
+          svLog("Read error: " + e.message, "err");
+        } finally {
+          svReader.releaseLock();
+          svReader = null;
+        }
+      }
+    }
+
+    async function svSend(text) {
+      if (!svWriter) { svLog("Not connected", "err"); return; }
+      try {
+        await svWriter.write(svEncoder.encode(text + "\n"));
+        svLog(text, "tx");
+      } catch (e) {
+        svLog("Send failed: " + e.message, "err");
+      }
+    }
+
+    function svRunLength() {
+      const v = parseFloat(svLength.value);
+      if (isNaN(v)) { svLog("Enter a number first", "err"); return; }
+      svSend(String(v));
+    }
+
+    function svApplyCal() {
+      svSend("CAL S" + svCalStop.value);
+      svSend("CAL F" + svCalFwd.value);
+      svSend("CAL R" + svCalRev.value);
+      svSend("CAL M" + svCalMspu.value);
+    }
+
+    svConnect.onclick = svConnectFn;
+    svDisconnect.onclick = svDisconnectFn;
+    svRun.onclick = svRunLength;
+    svStop.onclick = () => svSend("STOP");
+    svApply.onclick = svApplyCal;
+    svLength.addEventListener("keydown", e => { if (e.key === "Enter") svRunLength(); });
+    svQuick.forEach(b => b.onclick = () => { svLength.value = b.dataset.v; svRunLength(); });
+    window.addEventListener("beforeunload", () => { if (svPort) svDisconnectFn(); });
   })();
   </script>
 </body>

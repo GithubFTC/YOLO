@@ -148,7 +148,7 @@
 
     <header>
       <div class="logo">
-        <div class="badge">🌊</div>
+        <div class="badge">SD</div>
         <div>
           <h1>Subsea Detect</h1>
           <p>Underwater object detection · runs in your browser</p>
@@ -189,7 +189,7 @@
       <div class="rec-dot" id="rec">REC</div>
 
       <div class="placeholder" id="placeholder">
-        <div class="icon">🎥</div>
+        <div class="icon">[ ]</div>
         <div class="big" id="ph-big">Camera is off</div>
         <div class="small" id="ph-small">Press &ldquo;Start camera&rdquo; below to begin</div>
       </div>
@@ -202,9 +202,9 @@
     <div class="buttons" id="live-buttons">
       <button class="action primary" id="btn-start">Start camera</button>
       <button class="action" id="btn-stop" disabled>Stop</button>
-      <button class="action" id="btn-record" disabled>● Record</button>
+      <button class="action" id="btn-record" disabled>Record</button>
       <button class="action" id="btn-snap" disabled>Save photo</button>
-      <button class="action" id="btn-download" disabled>⬇ Download everything</button>
+      <button class="action" id="btn-download" disabled>Download everything</button>
       <label class="switch"><input type="checkbox" id="fix-live" checked> Underwater color fix</label>
     </div>
 
@@ -212,7 +212,7 @@
       <button class="action primary" id="btn-pick">Choose video file</button>
       <button class="action" id="btn-run" disabled>Run detection</button>
       <button class="action" id="btn-halt" disabled>Stop</button>
-      <button class="action" id="btn-download2" disabled>⬇ Download everything</button>
+      <button class="action" id="btn-download2" disabled>Download everything</button>
       <label class="switch"><input type="checkbox" id="fix-file" checked> Underwater color fix</label>
     </div>
 
@@ -258,7 +258,7 @@
         <h2>Run a length</h2>
         <div class="run-row">
           <input type="number" id="sv-length" placeholder="0" step="0.1" disabled>
-          <button class="action primary" id="sv-run" disabled>Move ▶</button>
+          <button class="action primary" id="sv-run" disabled>Move</button>
         </div>
         <div class="quick">
           <button class="action sv-q" data-v="1" disabled>1</button>
@@ -267,7 +267,7 @@
           <button class="action sv-q" data-v="10" disabled>10</button>
           <button class="action sv-q" data-v="20" disabled>20</button>
         </div>
-        <button class="action sv-stop" id="sv-stop" disabled>■ STOP servo now</button>
+        <button class="action sv-stop" id="sv-stop" disabled>STOP servo now</button>
       </div>
 
       <div class="servo-card">
@@ -307,7 +307,7 @@
 
     <footer>
       <span>Everything runs on your device. Nothing is uploaded anywhere.</span>
-      <a href="https://github.com/GithubFTC/YOLO" target="_blank" rel="noopener">View on GitHub →</a>
+      <a href="https://github.com/GithubFTC/YOLO" target="_blank" rel="noopener">View on GitHub</a>
     </footer>
 
   </div>
@@ -393,10 +393,10 @@
     function drawFolders(){
       const has=dataset.size||clipFiles.length; foldersEmpty.style.display=has?"none":"block";
       const cards=[];
-      if (clipFiles.length) cards.push(`<div class="folder" style="border-left-color:#5d9ce0"><span class="fi">🎬</span><div><div class="fname">clips</div><div class="fcount">${clipFiles.length} clip${clipFiles.length>1?"s":""}</div></div></div>`);
+      if (clipFiles.length) cards.push(`<div class="folder" style="border-left-color:#5d9ce0"><span class="fi">[clips]</span><div><div class="fname">clips</div><div class="fcount">${clipFiles.length} clip${clipFiles.length>1?"s":""}</div></div></div>`);
       const names=[...dataset.keys()].sort((a,b)=>a==="unknown"?1:b==="unknown"?-1:a.localeCompare(b));
       for (const f of names){ const col=colorFor(f); const n=dataset.get(f).length;
-        cards.push(`<div class="folder" style="border-left-color:${col}"><span class="fi">${f==="unknown"?"❓":"📁"}</span><div><div class="fname">${f}</div><div class="fcount">${n} photo${n>1?"s":""}</div></div></div>`); }
+        cards.push(`<div class="folder" style="border-left-color:${col}"><span class="fi">${f==="unknown"?"[?]":"[+]"}</span><div><div class="fname">${f}</div><div class="fcount">${n} photo${n>1?"s":""}</div></div></div>`); }
       foldersEl.innerHTML=cards.join("");
     }
     function enableDownload(){ btnDownload.disabled=false; btnDownload2.disabled=false; }
@@ -447,10 +447,10 @@
       catch(e){ setHint("Camera connected but won’t play: "+e.message); stream.getTracks().forEach(t=>t.stop()); stream=null; return; }
       video.style.transform="scaleX(-1)"; sizeCanvases(video.videoWidth||640,video.videoHeight||480); placeholder.style.display="none";
       running=true; startT=performance.now(); btnStart.disabled=true; btnStop.disabled=false; btnRecord.disabled=false; btnSnap.disabled=false;
-      setState("Live"); setHint("Camera is live. Press “● Record” to start saving video, photos, and clips."); loop();
+      setState("Live"); setHint("Camera is live. Press “Record” to start saving video, photos, and clips."); loop();
     }
     async function stopCamera(){
-      running=false; if (recording){ killClip(); await stopFull(); recording=false; rec.classList.remove("on"); btnRecord.textContent="● Record"; btnRecord.classList.remove("recording"); }
+      running=false; if (recording){ killClip(); await stopFull(); recording=false; rec.classList.remove("on"); btnRecord.textContent="Record"; btnRecord.classList.remove("recording"); }
       if (stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; } video.srcObject=null; octx.clearRect(0,0,overlay.width,overlay.height); placeholder.style.display="flex";
       btnStart.disabled=false; btnStop.disabled=true; btnRecord.disabled=true; btnSnap.disabled=true; setState("Ready"); objEl.textContent="0"; fpsEl.textContent="—";
       setHint("Stopped. Your captured data is still here — press “Download everything” to save it.");
@@ -488,7 +488,7 @@
       octx.clearRect(0,0,overlay.width,overlay.height); const lines=[]; let count=0, top=null;
       for (const p of preds){ if (p.score<thr) continue; count++; const [x,y,w,h]=p.bbox; const isUnk=p.score<unkCut; const cls=isUnk?"unknown":p.class; const col=isUnk?"#d65f53":colorFor(p.class);
         drawBox(octx,x,y,w,h,col,`${cls} ${(p.score*100).toFixed(0)}%`); if (!top||p.score>top.score) top={...p,cls};
-        lines.push(`<div style="color:${col}">▸ ${cls} — ${(p.score*100).toFixed(0)}%${isUnk?"  → unknown":""}</div>`); }
+        lines.push(`<div style="color:${col}">${cls} - ${(p.score*100).toFixed(0)}%${isUnk?"  (unknown)":""}</div>`); }
       paintMix();
       if (recording&&count&&frames%every===0) for (const p of preds) if (p.score>=thr) saveFrame(p,unkCut);
       if (recording&&top&&!clipBusy) startClip(top.cls);
@@ -510,7 +510,7 @@
     btnStart.onclick=startCamera; btnStop.onclick=stopCamera; btnSnap.onclick=snap;
     btnDownload.onclick=downloadAll; btnDownload2.onclick=downloadAll;
     btnPick.onclick=pickFile; btnRun.onclick=runFile; btnHalt.onclick=haltFile;
-    btnRecord.onclick=()=>{ if (!recording){ if (startFull()){ recording=true; rec.classList.add("on"); btnRecord.textContent="■ Stop recording"; btnRecord.classList.add("recording"); enableDownload(); setHint("Recording! Video, photos, and clips are being saved."); } } else { killClip(); stopFull(); recording=false; rec.classList.remove("on"); btnRecord.textContent="● Record"; btnRecord.classList.remove("recording"); setHint("Recording stopped. Press “Download everything” to save."); } };
+    btnRecord.onclick=()=>{ if (!recording){ if (startFull()){ recording=true; rec.classList.add("on"); btnRecord.textContent="Stop recording"; btnRecord.classList.add("recording"); enableDownload(); setHint("Recording! Video, photos, and clips are being saved."); } } else { killClip(); stopFull(); recording=false; rec.classList.remove("on"); btnRecord.textContent="Record"; btnRecord.classList.remove("recording"); setHint("Recording stopped. Press “Download everything” to save."); } };
     conf.oninput=()=>confOut.textContent=(+conf.value/100).toFixed(2);
     red.oninput=()=>redOut.textContent=(+red.value/10).toFixed(1)+"×";
     unk.oninput=()=>unkOut.textContent=(+unk.value/100).toFixed(2);
@@ -554,7 +554,7 @@
     function svLog(text, cls) {
       const div = document.createElement("div");
       div.className = "line " + (cls || "rx");
-      const prefix = cls === "tx" ? "→ " : cls === "sys" ? "• " : cls === "err" ? "✗ " : "← ";
+      const prefix = cls === "tx" ? "TX  " : cls === "sys" ? "--  " : cls === "err" ? "ERR " : "RX  ";
       div.textContent = prefix + text;
       svConsole.appendChild(div);
       svConsole.scrollTop = svConsole.scrollHeight;

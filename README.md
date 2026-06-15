@@ -1,146 +1,150 @@
-# 🌊 YOLO — Live Underwater Detection
+# YOLO — Live Underwater Object Detection
 
-> Real-time underwater object detection in your browser. YOLO-style inference + adaptive color correction. No backend, no install, no data leaves your device.
-
-**🔗 Live demo: [https://GithubFTC.github.io/YOLO/](https://GithubFTC.github.io/YOLO/)**
-
+A browser-based demo for real-time underwater object detection using TensorFlow.js. It uses your webcam or phone camera, applies optional underwater color correction, and draws detection boxes directly on the video feed.
+**Live demo:** https://GithubFTC.github.io/YOLO/
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![No Backend](https://img.shields.io/badge/backend-none-success)
 ![TensorFlow.js](https://img.shields.io/badge/TensorFlow.js-4.20-orange)
 ![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)
 
-Subsea Detect is a single-page web app that grabs your webcam (or a phone's rear camera), pipes each frame through a **YOLO-family single-shot detector** running on-device via TensorFlow.js, and overlays bounding boxes with sci-fi corner-bracket targeting graphics. An optional **underwater color-correction stage** sits in front of the model so the detector works on the blue-green cast that surface-trained networks normally choke on.
+## Overview
 
-Everything runs client-side. Push to GitHub Pages and you have a live demo with zero infrastructure.
+Subsea Detect is a single-page web app that runs object detection completely in the browser. It takes live camera input, processes each frame with a lightweight TensorFlow.js object detection model, and displays bounding boxes with a heads-up-display style overlay.
+The app also includes an optional underwater color-correction step. This helps reduce the blue-green tint that often appears in underwater footage and can make objects easier for the model to detect.
+Everything runs on the user’s device. There is no backend server, no installation, and no uploaded video data.
 
----
+## Features
 
-## ✨ Features
+* Live webcam object detection
+* Rear-camera support on mobile devices
+* TensorFlow.js COCO-SSD model
+* Optional underwater color correction
+* Adjustable confidence threshold
+* Adjustable red-channel boost
+* Frame capture as PNG
+* HUD-style overlay with FPS, runtime, and object count
+* Fully client-side processing
+* Mobile-friendly layout
 
-- 🎥 **Live camera inference** — rear camera preferred on mobile, front on desktop
-- 🧠 **YOLO-style detector** — COCO-SSD (lite MobileNet v2 backbone, ~10 MB)
-- 🌊 **Underwater color correction** — Gray World white-balance + red-channel boost, toggleable
-- 🎛️ **Live tuning** — confidence threshold + red-boost sliders update in real time
-- 📸 **Frame capture** — saves the corrected frame + detection overlay as PNG
-- 🎨 **HUD overlay** — bearing, range, runtime, FPS, object count
-- 🔒 **Privacy-first** — 100% on-device, no network calls after initial model load
-- 📱 **Mobile-friendly** — responsive layout, touch-friendly controls
+## Quick Start
 
----
+### Run Locally
 
-## 🚀 Quick start
-
-### Run locally
-
-You need any static file server — opening `index.html` directly via `file://` won't work because `getUserMedia` requires a secure context (https or localhost).
+Because camera access requires a secure context, opening `index.html` directly with `file://` may not work. Use a local server instead.
 
 ```bash
-# clone
 git clone https://github.com/GithubFTC/YOLO.git
 cd YOLO
-
-# any one of these works:
 python3 -m http.server 8000
-# or
+```
+
+You can also use:
+
+```bash
 npx serve .
-# or
+```
+
+or:
+
+```bash
 npx http-server -p 8000
 ```
 
-Then open <http://localhost:8000>.
+Then open:
 
-### Deploy to GitHub Pages
-
-1. Push this repo to GitHub.
-2. Settings → Pages → Source: `Deploy from a branch` → `main` / `/ (root)`.
-3. Your demo is live at `https://GithubFTC.github.io/YOLO/`.
-
-That's it. No build step, no bundler, no CI required.
-
----
-
-## 📁 Project structure
-
+```text
+http://localhost:8000
 ```
+
+## Deploy to GitHub Pages
+
+1. Push the repository to GitHub.
+2. Go to **Settings → Pages**.
+3. Set the source to **Deploy from a branch**.
+4. Select the `main` branch and `/ (root)`.
+5. Save the settings.
+   The site will be available at:
+
+```text
+https://GithubFTC.github.io/YOLO/
+```
+
+No build step or backend setup is required.
+
+## Project Structure
+
+```text
 YOLO/
-├── index.html              # Entry point
+├── index.html
 ├── src/
-│   ├── main.js             # App logic, detection loop, UI wiring
-│   └── styles.css          # All styles
+│   ├── main.js
+│   └── styles.css
 ├── .github/workflows/
-│   └── pages.yml           # Optional GitHub Pages deploy workflow
+│   └── pages.yml
 ├── LICENSE
 ├── README.md
 └── .gitignore
 ```
 
----
+## How It Works
 
-## 🔬 How it works
+The app follows a simple browser-based computer vision pipeline:
 
-### The pipeline
-
-```
-  ┌────────┐   ┌────────────┐   ┌──────────────┐   ┌─────────┐   ┌─────────┐
-  │ webcam │ → │ proc <canvas> │ → │  underwater  │ → │ COCO-SSD │ → │ overlay │
-  └────────┘   └────────────┘   │   correction │   │ (YOLO)  │   │  draw   │
-                                └──────────────┘   └─────────┘   └─────────┘
+```text
+Camera → Processing Canvas → Color Correction → Object Detection → Overlay
 ```
 
-### Underwater color correction
+Each video frame is copied into a canvas. If underwater correction is enabled, the frame is adjusted before being passed into the detection model. The model returns detected objects, confidence scores, and bounding boxes, which are then drawn over the video feed.
 
-Water absorbs longer wavelengths (red) within a few meters of depth, leaving the familiar blue-green cast. Detectors trained on surface imagery degrade fast in this regime — features they rely on disappear into a single channel.
+## Underwater Color Correction
 
-The correction step does two things:
+Underwater images often lose red tones because water absorbs longer wavelengths of light faster than shorter wavelengths. This usually leaves footage with a blue or green tint.
+The correction step uses two basic adjustments:
 
-1. **Gray World white balance** — assumes the average scene color should be neutral and computes per-channel gains so each channel's mean equals the overall gray level.
-2. **Red-channel boost** — an extra multiplicative gain on red (default `1.6x`, tunable via the slider) to recover what the water swallowed.
-
-The blue channel gets a mild `0.85x` knock-down because over-corrected blue is what gives processed underwater footage that synthetic, "magenta haze" look.
+1. **Gray World white balance** — The app estimates the average red, green, and blue values in the frame and adjusts them so the overall image looks more neutral.
+2. **Red-channel boost** — Since red is often reduced underwater, the app applies an extra red boost. This value can be changed with the slider in the interface.
+   The blue channel is slightly reduced to avoid making the corrected image look too artificial.
 
 ```js
-const rGain = (gray / rAvg) * redBoost;   // restore + boost
-const gGain =  gray / gAvg;               // restore
-const bGain = (gray / bAvg) * 0.85;       // restore - knock back
+const rGain = (gray / rAvg) * redBoost;
+const gGain = gray / gAvg;
+const bGain = (gray / bAvg) * 0.85;
 ```
 
-### Detection model
+## Detection Model
 
-This ships with **COCO-SSD** (`lite_mobilenet_v2` backbone), a YOLO-family single-shot detector trained on the 80-class COCO dataset. It's not a real underwater model — it's the best off-the-shelf option for a one-click demo. To make this production-grade for marine work, see [Upgrading the model](#-upgrading-the-model) below.
+This project currently uses **COCO-SSD** with the `lite_mobilenet_v2` backbone. It is lightweight, runs well in the browser, and is good for a simple live demo.
+However, COCO-SSD is trained on general everyday objects, not underwater objects. That means it may not reliably detect marine-specific objects such as scallops, sea urchins, ROV parts, or underwater debris.
+For a stronger underwater detection system, the model should be replaced with a custom-trained YOLO model using an underwater dataset.
 
----
+## Upgrading to a Custom YOLO Model
 
-## 🐠 Upgrading the model
+To detect real underwater objects, you can fine-tune a YOLOv8 model and export it to TensorFlow.js.
 
-COCO classes don't include _scallop_, _sea urchin_, or _ROV_. To detect actual marine objects, swap in a fine-tuned YOLOv8.
+### Step 1: Train YOLOv8
 
-### Step 1 — fine-tune YOLOv8
-
-In a Colab notebook (free tier):
+Example using Google Colab:
 
 ```python
 !pip install ultralytics
-
 from ultralytics import YOLO
-
-# Use a public underwater dataset (Roboflow has several free ones)
-# https://universe.roboflow.com/ — search "underwater" or "aquarium"
-model = YOLO('yolov8n.pt')
-model.train(data='underwater.yaml', epochs=80, imgsz=640)
-model.export(format='tfjs')
+model = YOLO("yolov8n.pt")
+model.train(data="underwater.yaml", epochs=80, imgsz=640)
+model.export(format="tfjs")
 ```
 
-### Step 2 — drop in the weights
+### Step 2: Add the Exported Model
 
-Copy the exported `model.json` + `*.bin` shard files into `public/yolo-underwater/`, then replace the loader in `src/main.js`:
+Copy the exported `model.json` and `.bin` shard files into:
+
+```text
+public/yolo-underwater/
+```
+
+Then replace the COCO-SSD loader in `src/main.js`.
 
 ```js
-// before
-model = await cocoSsd.load({ base: 'lite_mobilenet_v2' });
-
-// after
-const tfModel = await tf.loadGraphModel('./public/yolo-underwater/model.json');
-
+const tfModel = await tf.loadGraphModel("./public/yolo-underwater/model.json");
 async function detect(canvas) {
   const input = tf.tidy(() => {
     return tf.image
@@ -150,66 +154,59 @@ async function detect(canvas) {
   });
   const output = await tfModel.executeAsync(input);
   input.dispose();
-  return postprocess(output);   // NMS + bbox decode — see ultralytics docs
+  return postprocess(output);
 }
 ```
 
-### Suggested datasets
+You will also need to add post-processing for the YOLO output, including bounding box decoding and non-maximum suppression.
 
-| Dataset            | Classes                          | Size      | Link |
-|--------------------|----------------------------------|-----------|------|
-| URPC 2020          | sea cucumber, urchin, scallop, starfish | ~6 k img | [opendatalab.com](https://opendatalab.com/) |
-| Brackish           | fish, crab, jellyfish, shrimp, starfish  | 14 k img | [Roboflow](https://public.roboflow.com/object-detection/brackish-underwater) |
-| Aquarium           | fish, jellyfish, penguin, shark, etc.    | 638 img  | [Roboflow](https://public.roboflow.com/object-detection/aquarium) |
-| TrashCan 1.0       | marine debris, ROV parts                 | 7 k img  | [conservancy.umn.edu](https://conservancy.umn.edu/handle/11299/214865) |
+## Possible Underwater Datasets
 
----
+| Dataset      | Example Classes                             |       Size | Link                                                                         |
+| ------------ | ------------------------------------------- | ---------: | ---------------------------------------------------------------------------- |
+| URPC 2020    | sea cucumber, sea urchin, scallop, starfish | ~6k images | [OpenDataLab](https://opendatalab.com/)                                      |
+| Brackish     | fish, crab, jellyfish, shrimp, starfish     | 14k images | [Roboflow](https://public.roboflow.com/object-detection/brackish-underwater) |
+| Aquarium     | fish, jellyfish, penguin, shark             | 638 images | [Roboflow](https://public.roboflow.com/object-detection/aquarium)            |
+| TrashCan 1.0 | marine debris, ROV parts                    |  7k images | [University of Minnesota](https://conservancy.umn.edu/handle/11299/214865)   |
 
-## 🛠️ Tech stack
+## Tech Stack
 
-- **HTML/CSS/vanilla JS** — no framework, no bundler
-- **[TensorFlow.js](https://www.tensorflow.org/js) 4.20** — in-browser ML runtime
-- **[COCO-SSD](https://github.com/tensorflow/tfjs-models/tree/master/coco-ssd) 2.2** — YOLO-style SSD detector
-- **Canvas 2D** — image processing + overlay rendering
-- **MediaDevices `getUserMedia`** — camera access
+* HTML
+* CSS
+* Vanilla JavaScript
+* TensorFlow.js
+* COCO-SSD
+* Canvas 2D
+* MediaDevices `getUserMedia`
+  The app is intentionally simple and lightweight. There is no framework, no bundler, and no backend server.
 
-WebGPU backend is enabled by default on supported browsers (Chrome 113+, Edge 113+) — TF.js will pick it up automatically and you'll see 2-4× higher FPS than the WebGL backend.
+## Roadmap
 
----
+* [ ] Add smoother tracking to reduce bounding box flicker
+* [ ] Train and integrate custom underwater YOLOv8 weights
+* [ ] Add video upload support
+* [ ] Add annotated video recording
+* [ ] Add depth-estimation overlay
+* [ ] Add WebRTC input for remote camera feeds
+* [ ] Improve underwater dehazing and color correction
 
-## 🔧 Roadmap
+## Contributing
 
-- [ ] ByteTrack-lite temporal smoothing (kills box flicker)
-- [ ] Custom YOLOv8n weights trained on a real underwater dataset
-- [ ] Video file upload mode (not just live camera)
-- [ ] Recording mode — save annotated video out
-- [ ] Depth estimation overlay (MiDaS via TF.js)
-- [ ] WebRTC streaming input for ROV control rooms
-- [ ] Polarization-aware dehazing (academic; would need a 2-shot setup)
-
----
-
-## 🤝 Contributing
-
-PRs welcome. Keep dependencies minimal — the goal is "open `index.html`, it works."
+Pull requests are welcome. Try to keep the project simple and easy to run.
 
 ```bash
-git checkout -b feature/your-thing
-# ...your changes...
-git commit -m "feat: add your-thing"
-git push origin feature/your-thing
+git checkout -b feature/your-feature
+git commit -m "feat: add your feature"
+git push origin feature/your-feature
 ```
 
----
+## License
 
-## 📄 License
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
-MIT — see [LICENSE](LICENSE). Do whatever you want, just don't blame me when it doesn't find Atlantis.
+## Credits
 
----
-
-## 🙏 Credits
-
-- COCO-SSD by the TensorFlow.js team
-- Gray World assumption: Buchsbaum, _A spatial processor model for object colour perception_ (1980)
-- Sci-fi corner brackets — every cyberpunk movie ever
+* TensorFlow.js team for COCO-SSD
+* Buchsbaum’s Gray World color constancy model
+* Open underwater datasets used as references for future model training
+* Sci-fi HUD designs for overlay inspiration

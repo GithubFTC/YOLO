@@ -167,7 +167,7 @@
       <button class="page-btn" id="page-btn-servo">Servo control</button>
     </div>
 
-    <!--  DETECTION PAGE  -->
+    <!--   DETECTION PAGE   -->
     <div id="page-detect">
 
     <div class="tabs">
@@ -227,7 +227,6 @@
         <div class="slider"><label>Save 1 frame every <b id="rate-out">15</b></label><input type="range" id="rate" min="1" max="60" value="15" step="1"></div>
         <div class="slider"><label>Clip length <b id="clip-out">3s</b></label><input type="range" id="clip" min="1" max="10" value="3" step="1"></div>
         <div class="slider"><label>Gap between clips <b id="gap-out">2s</b></label><input type="range" id="gap" min="0" max="10" value="2" step="1"></div>
-        <div class="slider"><label>Persistence (frames) <b id="persist-out">3</b></label><input type="range" id="persist" min="1" max="10" value="3" step="1"></div>
       </div>
       <div style="padding:0 16px 16px;">
         <label class="switch" style="margin-left:0;">
@@ -251,7 +250,7 @@
 
     </div><!-- /page-detect -->
 
-    <!--  SERVO CONTROL PAGE  -->
+    <!--   SERVO CONTROL PAGE   -->
     <div id="page-servo" hidden>
 
       <div id="servo-unsupported" class="warn-box" style="display:none;">
@@ -347,7 +346,6 @@
     const fixLive = $("fix-live"), fixFile = $("fix-file");
     const hadalMode = $("hadal-mode");
     const conf = $("conf"), red = $("red"), unk = $("unk"), rate = $("rate"), clip = $("clip"), gap = $("gap");
-    const persistSlider = $("persist"), persistOut = $("persist-out");
     const confOut = $("conf-out"), redOut = $("red-out"), unkOut = $("unk-out"), rateOut = $("rate-out"), clipOut = $("clip-out"), gapOut = $("gap-out");
 
     let mode = "live", model = null, stream = null, fileURL = null;
@@ -360,7 +358,7 @@
 
     const COLORS = ["#34b3d4","#4caf7d","#e0a44a","#b07de0","#e06d9c","#5d9ce0","#d65f53","#6dc7b8"];
 
-    //   Hadal mode class lists  
+    // ---- Hadal mode class lists ----
     // HADAL_CLASSES: labels we keep AS-IS (none of COCO's 80 are real hadal taxa,
     //   so this is empty for now — it's where your trained model's labels go later,
     //   e.g. "amphipod","holothurian","snailfish","polychaete").
@@ -393,37 +391,6 @@
       for (let i=0;i<d.length;i+=4){ d[i]=Math.min(255,d[i]*gr); d[i+1]=Math.min(255,d[i+1]*gg); d[i+2]=Math.min(255,d[i+2]*gb); }
       return img;
     }
-    //   Temporal persistence tracking  
-    // Each tracked detection remembers where it was and how many frames in a row
-    // we've seen it. Only ones seen >= needFrames are shown. Ones not re-seen for
-    // a couple frames are forgotten.
-    let tracks = [];   // {x,y,cls,seen,missed}
-    function persistFilter(preds) {
-      const needFrames = parseInt(persistSlider.value, 10);
-      if (needFrames <= 1) return preds;   // persistence off
-      const w = work.width, h = work.height;
-      const tol = Math.max(w, h) * 0.12;   // "same spot" radius
-
-      // mark all existing tracks as not-yet-seen this frame
-      for (const t of tracks) t.matchedThis = false;
-
-      const confirmed = [];
-      for (const p of preds) {
-        const [px, py, pw, ph] = p.bbox;
-        const cx = px + pw/2, cy = py + ph/2;
-        // find an existing track near this detection of the same class
-        let t = tracks.find(t => !t.matchedThis && t.cls === p.class &&
-                                  Math.hypot(t.x - cx, t.y - cy) < tol);
-        if (t) { t.x = cx; t.y = cy; t.seen++; t.missed = 0; t.matchedThis = true; }
-        else   { t = { x: cx, y: cy, cls: p.class, seen: 1, missed: 0, matchedThis: true }; tracks.push(t); }
-        if (t.seen >= needFrames) confirmed.push(p);   // only show once it has persisted
-      }
-      // age out tracks we didn't see this frame; drop ones missing too long
-      for (const t of tracks) if (!t.matchedThis) t.missed++;
-      tracks = tracks.filter(t => t.missed <= 3);
-      return confirmed;
-    }
-
     function drawBox(ctx,x,y,w,h,color,label){
       const c=Math.min(18,w/4,h/4); ctx.strokeStyle=color; ctx.lineWidth=2.5; ctx.beginPath();
       ctx.moveTo(x,y+c);ctx.lineTo(x,y);ctx.lineTo(x+c,y);
@@ -548,7 +515,7 @@
       if (currentFix()){ const im=wctx.getImageData(0,0,work.width,work.height); fixColor(im,+red.value/10); wctx.putImageData(im,0,0); }
       const thr=+conf.value/100, unkCut=+unk.value/100, every=+rate.value;
       let preds=[]; try { preds=await model.detect(work,20,thr); } catch {}
-      //   Hadal mode: keep only allowed classes; route the rest out  
+      // ---- Hadal mode: keep only allowed classes; route the rest out ----
       // COCO-SSD has no true deep-sea taxa, so when hadal mode is ON we treat
       // every detection as a generic "organism" candidate and drop the obvious
       // land-object misfires (cap->umbrella, etc.). When you swap in a real
@@ -558,11 +525,6 @@
         preds = preds.filter(p => !HADAL_BLOCK.has(p.class));
         preds = preds.map(p => ({ ...p, class: HADAL_CLASSES.has(p.class) ? p.class : "organism" }));
       }
-      //   Temporal persistence: only trust detections that stick around  
-      // Marine snow and one-frame glitches flicker and vanish; real organisms
-      // appear in roughly the same spot across consecutive frames. We require a
-      // detection to be seen for "needFrames" frames in a row before showing it.
-      preds = persistFilter(preds);
       octx.clearRect(0,0,overlay.width,overlay.height); const lines=[]; let count=0, top=null;
       for (const p of preds){ if (p.score<thr) continue; count++; const [x,y,w,h]=p.bbox; const isUnk=p.score<unkCut; const cls=isUnk?"unknown":p.class; const col=isUnk?"#d65f53":colorFor(p.class);
         drawBox(octx,x,y,w,h,col,`${cls} ${(p.score*100).toFixed(0)}%`); if (!top||p.score>top.score) top={...p,cls};
@@ -595,10 +557,9 @@
     rate.oninput=()=>rateOut.textContent=rate.value;
     clip.oninput=()=>clipOut.textContent=clip.value+"s";
     gap.oninput=()=>gapOut.textContent=gap.value+"s";
-    persistSlider.oninput=()=>persistOut.textContent=persistSlider.value;
     switchMode("live");
 
-    //  PAGE SWITCHING (Detection <-> Servo) 
+    //   PAGE SWITCHING (Detection <-> Servo)  
     const pageDetect = $("page-detect"), pageServo = $("page-servo");
     const pageBtnDetect = $("page-btn-detect"), pageBtnServo = $("page-btn-servo");
 
@@ -614,7 +575,7 @@
     pageBtnDetect.onclick = () => showPage("detect");
     pageBtnServo.onclick = () => showPage("servo");
 
-    //  SERVO CONTROL (Web Serial) 
+    //   SERVO CONTROL (Web Serial)  
     const svDot = $("sv-dot"), svConnLabel = $("sv-conn-label");
     const svConnect = $("sv-connect"), svDisconnect = $("sv-disconnect");
     const svLength = $("sv-length"), svRun = $("sv-run"), svStop = $("sv-stop");

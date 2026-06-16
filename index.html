@@ -148,7 +148,7 @@
 
     <header>
       <div class="logo">
-        <div class="badge">🌊</div>
+        <div class="badge">SD</div>
         <div>
           <h1>Subsea Detect</h1>
           <p>Underwater object detection · runs in your browser</p>
@@ -163,16 +163,16 @@
     </header>
 
     <div class="page-switch">
-      <button class="page-btn active" id="page-btn-detect">🌊 Detection</button>
-      <button class="page-btn" id="page-btn-servo">⚙️ Servo control</button>
+      <button class="page-btn active" id="page-btn-detect">Detection</button>
+      <button class="page-btn" id="page-btn-servo">Servo control</button>
     </div>
 
     <!--  DETECTION PAGE  -->
     <div id="page-detect">
 
     <div class="tabs">
-      <button class="tab active" id="tab-live">📷 Live camera</button>
-      <button class="tab" id="tab-file">🎬 Upload a video</button>
+      <button class="tab active" id="tab-live">Live camera</button>
+      <button class="tab" id="tab-file">Upload a video</button>
     </div>
 
     <div class="screen">
@@ -189,7 +189,7 @@
       <div class="rec-dot" id="rec">REC</div>
 
       <div class="placeholder" id="placeholder">
-        <div class="icon">🎥</div>
+        <div class="icon">[ ]</div>
         <div class="big" id="ph-big">Camera is off</div>
         <div class="small" id="ph-small">Press &ldquo;Start camera&rdquo; below to begin</div>
       </div>
@@ -202,9 +202,9 @@
     <div class="buttons" id="live-buttons">
       <button class="action primary" id="btn-start">Start camera</button>
       <button class="action" id="btn-stop" disabled>Stop</button>
-      <button class="action" id="btn-record" disabled>● Record</button>
+      <button class="action" id="btn-record" disabled>Record</button>
       <button class="action" id="btn-snap" disabled>Save photo</button>
-      <button class="action" id="btn-download" disabled>⬇ Download everything</button>
+      <button class="action" id="btn-download" disabled>Download everything</button>
       <label class="switch"><input type="checkbox" id="fix-live" checked> Underwater color fix</label>
     </div>
 
@@ -212,7 +212,7 @@
       <button class="action primary" id="btn-pick">Choose video file</button>
       <button class="action" id="btn-run" disabled>Run detection</button>
       <button class="action" id="btn-halt" disabled>Stop</button>
-      <button class="action" id="btn-download2" disabled>⬇ Download everything</button>
+      <button class="action" id="btn-download2" disabled>Download everything</button>
       <label class="switch"><input type="checkbox" id="fix-file" checked> Underwater color fix</label>
     </div>
 
@@ -227,6 +227,18 @@
         <div class="slider"><label>Save 1 frame every <b id="rate-out">15</b></label><input type="range" id="rate" min="1" max="60" value="15" step="1"></div>
         <div class="slider"><label>Clip length <b id="clip-out">3s</b></label><input type="range" id="clip" min="1" max="10" value="3" step="1"></div>
         <div class="slider"><label>Gap between clips <b id="gap-out">2s</b></label><input type="range" id="gap" min="0" max="10" value="2" step="1"></div>
+        <div class="slider"><label>Persistence (frames) <b id="persist-out">3</b></label><input type="range" id="persist" min="1" max="10" value="3" step="1"></div>
+      </div>
+      <div style="padding:0 16px 16px;">
+        <label class="switch" style="margin-left:0;">
+          <input type="checkbox" id="hadal-mode" checked>
+          Hadal mode &mdash; ignore land objects, label finds as &ldquo;organism&rdquo;
+        </label>
+        <div style="font-size:11px;color:var(--text-faint);margin-top:6px;">
+          The general model has no deep-sea species. This drops obvious land-object
+          mistakes (e.g. cap&rarr;umbrella) and marks remaining detections as generic
+          organisms. Swap in a trained model later to get real species names.
+        </div>
       </div>
     </details>
 
@@ -258,7 +270,7 @@
         <h2>Run a length</h2>
         <div class="run-row">
           <input type="number" id="sv-length" placeholder="0" step="0.1" disabled>
-          <button class="action primary" id="sv-run" disabled>Move ▶</button>
+          <button class="action primary" id="sv-run" disabled>Move</button>
         </div>
         <div class="quick">
           <button class="action sv-q" data-v="1" disabled>1</button>
@@ -267,7 +279,7 @@
           <button class="action sv-q" data-v="10" disabled>10</button>
           <button class="action sv-q" data-v="20" disabled>20</button>
         </div>
-        <button class="action sv-stop" id="sv-stop" disabled>■ STOP servo now</button>
+        <button class="action sv-stop" id="sv-stop" disabled>STOP servo now</button>
       </div>
 
       <div class="servo-card">
@@ -307,7 +319,7 @@
 
     <footer>
       <span>Everything runs on your device. Nothing is uploaded anywhere.</span>
-      <a href="https://github.com/GithubFTC/YOLO" target="_blank" rel="noopener">View on GitHub →</a>
+      <a href="https://github.com/GithubFTC/YOLO" target="_blank" rel="noopener">View on GitHub</a>
     </footer>
 
   </div>
@@ -333,7 +345,9 @@
     const btnSnap = $("btn-snap"), btnDownload = $("btn-download");
     const btnPick = $("btn-pick"), btnRun = $("btn-run"), btnHalt = $("btn-halt"), btnDownload2 = $("btn-download2");
     const fixLive = $("fix-live"), fixFile = $("fix-file");
+    const hadalMode = $("hadal-mode");
     const conf = $("conf"), red = $("red"), unk = $("unk"), rate = $("rate"), clip = $("clip"), gap = $("gap");
+    const persistSlider = $("persist"), persistOut = $("persist-out");
     const confOut = $("conf-out"), redOut = $("red-out"), unkOut = $("unk-out"), rateOut = $("rate-out"), clipOut = $("clip-out"), gapOut = $("gap-out");
 
     let mode = "live", model = null, stream = null, fileURL = null;
@@ -345,6 +359,24 @@
     let mixCanvas = null, mixCtx = null, mixStream = null;
 
     const COLORS = ["#34b3d4","#4caf7d","#e0a44a","#b07de0","#e06d9c","#5d9ce0","#d65f53","#6dc7b8"];
+
+    //   Hadal mode class lists  
+    // HADAL_CLASSES: labels we keep AS-IS (none of COCO's 80 are real hadal taxa,
+    //   so this is empty for now — it's where your trained model's labels go later,
+    //   e.g. "amphipod","holothurian","snailfish","polychaete").
+    // HADAL_BLOCK: obvious land-object classes COCO loves to hallucinate underwater.
+    //   These get dropped entirely in hadal mode so a cap stops reading as "umbrella".
+    const HADAL_CLASSES = new Set([
+      // add your trained-model labels here, e.g.:
+      // "amphipod","holothurian","snailfish","polychaete","xenophyophore","sea_cucumber"
+    ]);
+    const HADAL_BLOCK = new Set([
+      "umbrella","cap","hat","tie","handbag","backpack","suitcase","frisbee",
+      "kite","sports ball","bottle","cup","bowl","chair","couch","tv","laptop",
+      "cell phone","book","clock","vase","scissors","teddy bear","toothbrush",
+      "person","car","truck","bus","traffic light","bench"
+    ]);
+
     const colorFor = c => { if (c === "unknown") return "#d65f53"; let h = 0; for (const ch of c) h = (h*31 + ch.charCodeAt(0)) >>> 0; return COLORS[h % COLORS.length]; };
     const stamp = () => new Date().toISOString().replace(/[:.]/g,"-").slice(0,19);
     const clean = s => s.replace(/[^a-z0-9_-]+/gi,"_").toLowerCase();
@@ -361,6 +393,37 @@
       for (let i=0;i<d.length;i+=4){ d[i]=Math.min(255,d[i]*gr); d[i+1]=Math.min(255,d[i+1]*gg); d[i+2]=Math.min(255,d[i+2]*gb); }
       return img;
     }
+    //   Temporal persistence tracking  
+    // Each tracked detection remembers where it was and how many frames in a row
+    // we've seen it. Only ones seen >= needFrames are shown. Ones not re-seen for
+    // a couple frames are forgotten.
+    let tracks = [];   // {x,y,cls,seen,missed}
+    function persistFilter(preds) {
+      const needFrames = parseInt(persistSlider.value, 10);
+      if (needFrames <= 1) return preds;   // persistence off
+      const w = work.width, h = work.height;
+      const tol = Math.max(w, h) * 0.12;   // "same spot" radius
+
+      // mark all existing tracks as not-yet-seen this frame
+      for (const t of tracks) t.matchedThis = false;
+
+      const confirmed = [];
+      for (const p of preds) {
+        const [px, py, pw, ph] = p.bbox;
+        const cx = px + pw/2, cy = py + ph/2;
+        // find an existing track near this detection of the same class
+        let t = tracks.find(t => !t.matchedThis && t.cls === p.class &&
+                                  Math.hypot(t.x - cx, t.y - cy) < tol);
+        if (t) { t.x = cx; t.y = cy; t.seen++; t.missed = 0; t.matchedThis = true; }
+        else   { t = { x: cx, y: cy, cls: p.class, seen: 1, missed: 0, matchedThis: true }; tracks.push(t); }
+        if (t.seen >= needFrames) confirmed.push(p);   // only show once it has persisted
+      }
+      // age out tracks we didn't see this frame; drop ones missing too long
+      for (const t of tracks) if (!t.matchedThis) t.missed++;
+      tracks = tracks.filter(t => t.missed <= 3);
+      return confirmed;
+    }
+
     function drawBox(ctx,x,y,w,h,color,label){
       const c=Math.min(18,w/4,h/4); ctx.strokeStyle=color; ctx.lineWidth=2.5; ctx.beginPath();
       ctx.moveTo(x,y+c);ctx.lineTo(x,y);ctx.lineTo(x+c,y);
@@ -393,10 +456,10 @@
     function drawFolders(){
       const has=dataset.size||clipFiles.length; foldersEmpty.style.display=has?"none":"block";
       const cards=[];
-      if (clipFiles.length) cards.push(`<div class="folder" style="border-left-color:#5d9ce0"><span class="fi">🎬</span><div><div class="fname">clips</div><div class="fcount">${clipFiles.length} clip${clipFiles.length>1?"s":""}</div></div></div>`);
+      if (clipFiles.length) cards.push(`<div class="folder" style="border-left-color:#5d9ce0"><span class="fi">[clips]</span><div><div class="fname">clips</div><div class="fcount">${clipFiles.length} clip${clipFiles.length>1?"s":""}</div></div></div>`);
       const names=[...dataset.keys()].sort((a,b)=>a==="unknown"?1:b==="unknown"?-1:a.localeCompare(b));
       for (const f of names){ const col=colorFor(f); const n=dataset.get(f).length;
-        cards.push(`<div class="folder" style="border-left-color:${col}"><span class="fi">${f==="unknown"?"❓":"📁"}</span><div><div class="fname">${f}</div><div class="fcount">${n} photo${n>1?"s":""}</div></div></div>`); }
+        cards.push(`<div class="folder" style="border-left-color:${col}"><span class="fi">${f==="unknown"?"[?]":"[+]"}</span><div><div class="fname">${f}</div><div class="fcount">${n} photo${n>1?"s":""}</div></div></div>`); }
       foldersEl.innerHTML=cards.join("");
     }
     function enableDownload(){ btnDownload.disabled=false; btnDownload2.disabled=false; }
@@ -447,10 +510,10 @@
       catch(e){ setHint("Camera connected but won’t play: "+e.message); stream.getTracks().forEach(t=>t.stop()); stream=null; return; }
       video.style.transform="scaleX(-1)"; sizeCanvases(video.videoWidth||640,video.videoHeight||480); placeholder.style.display="none";
       running=true; startT=performance.now(); btnStart.disabled=true; btnStop.disabled=false; btnRecord.disabled=false; btnSnap.disabled=false;
-      setState("Live"); setHint("Camera is live. Press “● Record” to start saving video, photos, and clips."); loop();
+      setState("Live"); setHint("Camera is live. Press “Record” to start saving video, photos, and clips."); loop();
     }
     async function stopCamera(){
-      running=false; if (recording){ killClip(); await stopFull(); recording=false; rec.classList.remove("on"); btnRecord.textContent="● Record"; btnRecord.classList.remove("recording"); }
+      running=false; if (recording){ killClip(); await stopFull(); recording=false; rec.classList.remove("on"); btnRecord.textContent="Record"; btnRecord.classList.remove("recording"); }
       if (stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; } video.srcObject=null; octx.clearRect(0,0,overlay.width,overlay.height); placeholder.style.display="flex";
       btnStart.disabled=false; btnStop.disabled=true; btnRecord.disabled=true; btnSnap.disabled=true; setState("Ready"); objEl.textContent="0"; fpsEl.textContent="—";
       setHint("Stopped. Your captured data is still here — press “Download everything” to save it.");
@@ -485,10 +548,25 @@
       if (currentFix()){ const im=wctx.getImageData(0,0,work.width,work.height); fixColor(im,+red.value/10); wctx.putImageData(im,0,0); }
       const thr=+conf.value/100, unkCut=+unk.value/100, every=+rate.value;
       let preds=[]; try { preds=await model.detect(work,20,thr); } catch {}
+      //   Hadal mode: keep only allowed classes; route the rest out  
+      // COCO-SSD has no true deep-sea taxa, so when hadal mode is ON we treat
+      // every detection as a generic "organism" candidate and drop the obvious
+      // land-object misfires (cap->umbrella, etc.). When you swap in a real
+      // FathomNet/YOLOv8 model, replace HADAL_CLASSES with its actual labels
+      // and the same filter instantly becomes a true species allowlist.
+      if (hadalMode.checked) {
+        preds = preds.filter(p => !HADAL_BLOCK.has(p.class));
+        preds = preds.map(p => ({ ...p, class: HADAL_CLASSES.has(p.class) ? p.class : "organism" }));
+      }
+      //   Temporal persistence: only trust detections that stick around  
+      // Marine snow and one-frame glitches flicker and vanish; real organisms
+      // appear in roughly the same spot across consecutive frames. We require a
+      // detection to be seen for "needFrames" frames in a row before showing it.
+      preds = persistFilter(preds);
       octx.clearRect(0,0,overlay.width,overlay.height); const lines=[]; let count=0, top=null;
       for (const p of preds){ if (p.score<thr) continue; count++; const [x,y,w,h]=p.bbox; const isUnk=p.score<unkCut; const cls=isUnk?"unknown":p.class; const col=isUnk?"#d65f53":colorFor(p.class);
         drawBox(octx,x,y,w,h,col,`${cls} ${(p.score*100).toFixed(0)}%`); if (!top||p.score>top.score) top={...p,cls};
-        lines.push(`<div style="color:${col}">▸ ${cls} — ${(p.score*100).toFixed(0)}%${isUnk?"  → unknown":""}</div>`); }
+        lines.push(`<div style="color:${col}">${cls} - ${(p.score*100).toFixed(0)}%${isUnk?"  (unknown)":""}</div>`); }
       paintMix();
       if (recording&&count&&frames%every===0) for (const p of preds) if (p.score>=thr) saveFrame(p,unkCut);
       if (recording&&top&&!clipBusy) startClip(top.cls);
@@ -510,16 +588,17 @@
     btnStart.onclick=startCamera; btnStop.onclick=stopCamera; btnSnap.onclick=snap;
     btnDownload.onclick=downloadAll; btnDownload2.onclick=downloadAll;
     btnPick.onclick=pickFile; btnRun.onclick=runFile; btnHalt.onclick=haltFile;
-    btnRecord.onclick=()=>{ if (!recording){ if (startFull()){ recording=true; rec.classList.add("on"); btnRecord.textContent="■ Stop recording"; btnRecord.classList.add("recording"); enableDownload(); setHint("Recording! Video, photos, and clips are being saved."); } } else { killClip(); stopFull(); recording=false; rec.classList.remove("on"); btnRecord.textContent="● Record"; btnRecord.classList.remove("recording"); setHint("Recording stopped. Press “Download everything” to save."); } };
+    btnRecord.onclick=()=>{ if (!recording){ if (startFull()){ recording=true; rec.classList.add("on"); btnRecord.textContent="Stop recording"; btnRecord.classList.add("recording"); enableDownload(); setHint("Recording! Video, photos, and clips are being saved."); } } else { killClip(); stopFull(); recording=false; rec.classList.remove("on"); btnRecord.textContent="Record"; btnRecord.classList.remove("recording"); setHint("Recording stopped. Press “Download everything” to save."); } };
     conf.oninput=()=>confOut.textContent=(+conf.value/100).toFixed(2);
     red.oninput=()=>redOut.textContent=(+red.value/10).toFixed(1)+"×";
     unk.oninput=()=>unkOut.textContent=(+unk.value/100).toFixed(2);
     rate.oninput=()=>rateOut.textContent=rate.value;
     clip.oninput=()=>clipOut.textContent=clip.value+"s";
     gap.oninput=()=>gapOut.textContent=gap.value+"s";
+    persistSlider.oninput=()=>persistOut.textContent=persistSlider.value;
     switchMode("live");
 
-    //  PAGE SWITCHING (Detection <-> Servo)  
+    //  PAGE SWITCHING (Detection <-> Servo) 
     const pageDetect = $("page-detect"), pageServo = $("page-servo");
     const pageBtnDetect = $("page-btn-detect"), pageBtnServo = $("page-btn-servo");
 
@@ -535,7 +614,7 @@
     pageBtnDetect.onclick = () => showPage("detect");
     pageBtnServo.onclick = () => showPage("servo");
 
-    //  SERVO CONTROL (Web Serial)  
+    //  SERVO CONTROL (Web Serial) 
     const svDot = $("sv-dot"), svConnLabel = $("sv-conn-label");
     const svConnect = $("sv-connect"), svDisconnect = $("sv-disconnect");
     const svLength = $("sv-length"), svRun = $("sv-run"), svStop = $("sv-stop");
@@ -554,7 +633,7 @@
     function svLog(text, cls) {
       const div = document.createElement("div");
       div.className = "line " + (cls || "rx");
-      const prefix = cls === "tx" ? "→ " : cls === "sys" ? "• " : cls === "err" ? "✗ " : "← ";
+      const prefix = cls === "tx" ? "TX  " : cls === "sys" ? "--  " : cls === "err" ? "ERR " : "RX  ";
       div.textContent = prefix + text;
       svConsole.appendChild(div);
       svConsole.scrollTop = svConsole.scrollHeight;

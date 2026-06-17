@@ -6,12 +6,10 @@ const int servoPin = 10;
 
 // L298N Motor Driver Pins
 // Motor Set 1 & 2 (parallel on OUT1/OUT2)
-const int enableA  = 9;     // ENA - PWM control
 const int motorA1  = 8;     // IN1 - direction control
 const int motorA2  = 7;     // IN2 - direction control
 
 // Motor 3 (on OUT3/OUT4)
-const int enableB  = 4;     // ENB - PWM control
 const int motorB1  = 6;     // IN3 - direction control
 const int motorB2  = 5;     // IN4 - direction control
 
@@ -26,20 +24,18 @@ void setup() {
   Serial.begin(9600);
   myServo.attach(servoPin);
   myServo.write(stopSignal);
-  
+
   // Motor control pins
-  pinMode(enableA, OUTPUT);
   pinMode(motorA1, OUTPUT);
   pinMode(motorA2, OUTPUT);
-  pinMode(enableB, OUTPUT);
   pinMode(motorB1, OUTPUT);
   pinMode(motorB2, OUTPUT);
-  
+
   // Initialize motors to stopped
   stopMotors();
 
   Serial.println("Servo and motor control ready.");
-  Serial.println("Enter a length for servo, or M1<value> / M2<value> for motors:");
+  Serial.println("Enter a length for servo, or M1F/M1S/M1R / M2F/M2S/M2R for motors:");
 }
 
 void loop() {
@@ -128,59 +124,57 @@ void flushSerial() {
 }
 
 // ---- Motor control (L298N) ----
-// Command format: M1<value> for Motor Set 1, M2<value> for Motor Set 3
-// Value range: -1.0 (full reverse) to 1.0 (full forward), 0 = stop
+// Command format: M1F/M1S/M1R for Motor Set 1 (Forward/Stop/Reverse)
+//                 M2F/M2S/M2R for Motor Set 2 (Forward/Stop/Reverse)
 void handleMotor() {
   String cmd = Serial.readStringUntil('\n');
   cmd.trim();
   cmd.toUpperCase();
   flushSerial();
 
-  if (cmd.length() < 2) {
+  if (cmd.length() < 3) {
     Serial.println("Bad motor command.");
     return;
   }
 
   char motorNum = cmd.charAt(1);  // '1' or '2'
-  float speed = cmd.substring(2).toFloat();
-
-  // Clamp speed to -1.0 to 1.0
-  if (speed < -1.0) speed = -1.0;
-  if (speed > 1.0) speed = 1.0;
+  char direction = cmd.charAt(2); // 'F', 'S', or 'R'
 
   if (motorNum == '1') {
-    setMotorSpeed(enableA, motorA1, motorA2, speed);
-    Serial.print("Motor Set 1 speed: ");
-    Serial.println(speed);
+    if (direction == 'F') {
+      digitalWrite(motorA1, HIGH);
+      digitalWrite(motorA2, LOW);
+      Serial.println("Motor Set 1: Forward");
+    } else if (direction == 'S') {
+      digitalWrite(motorA1, LOW);
+      digitalWrite(motorA2, LOW);
+      Serial.println("Motor Set 1: Stop");
+    } else if (direction == 'R') {
+      digitalWrite(motorA1, LOW);
+      digitalWrite(motorA2, HIGH);
+      Serial.println("Motor Set 1: Reverse");
+    } else {
+      Serial.println("Unknown motor command (use M1F/M1S/M1R).");
+    }
   } else if (motorNum == '2') {
-    setMotorSpeed(enableB, motorB1, motorB2, speed);
-    Serial.print("Motor Set 2 speed: ");
-    Serial.println(speed);
+    if (direction == 'F') {
+      digitalWrite(motorB1, HIGH);
+      digitalWrite(motorB2, LOW);
+      Serial.println("Motor Set 2: Forward");
+    } else if (direction == 'S') {
+      digitalWrite(motorB1, LOW);
+      digitalWrite(motorB2, LOW);
+      Serial.println("Motor Set 2: Stop");
+    } else if (direction == 'R') {
+      digitalWrite(motorB1, LOW);
+      digitalWrite(motorB2, HIGH);
+      Serial.println("Motor Set 2: Reverse");
+    } else {
+      Serial.println("Unknown motor command (use M2F/M2S/M2R).");
+    }
   } else {
     Serial.println("Unknown motor number (use M1 or M2).");
   }
-}
-
-// ---- Set motor speed and direction ----
-// speed: -1.0 (full reverse) to 1.0 (full forward)
-void setMotorSpeed(int enablePin, int dir1Pin, int dir2Pin, float speed) {
-  int pwmValue = (int)(abs(speed) * 255);
-
-  if (speed > 0) {
-    // Forward
-    digitalWrite(dir1Pin, HIGH);
-    digitalWrite(dir2Pin, LOW);
-  } else if (speed < 0) {
-    // Reverse
-    digitalWrite(dir1Pin, LOW);
-    digitalWrite(dir2Pin, HIGH);
-  } else {
-    // Stop
-    digitalWrite(dir1Pin, LOW);
-    digitalWrite(dir2Pin, LOW);
-  }
-
-  analogWrite(enablePin, pwmValue);
 }
 
 // ---- Stop all motors ----
@@ -189,6 +183,4 @@ void stopMotors() {
   digitalWrite(motorA2, LOW);
   digitalWrite(motorB1, LOW);
   digitalWrite(motorB2, LOW);
-  digitalWrite(enableA, LOW);
-  digitalWrite(enableB, LOW);
 }

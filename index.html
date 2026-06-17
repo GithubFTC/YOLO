@@ -287,23 +287,24 @@
 
       <div class="servo-card">
         <h2>Motor Control (L298N)</h2>
-        <div class="motor-sliders">
+        <div class="motor-sliders" style="grid-template-columns: 1fr 1fr; gap: 16px;">
           <div class="motor-slider">
             <label>Motor Set 1 & 2 (OUT1/OUT2, pin 9)</label>
             <div style="display:flex;gap:8px;align-items:center;">
-              <input type="range" id="m1-slider" min="-100" max="100" value="0" disabled style="flex:1;">
-              <span id="m1-value" style="font-family:var(--mono);min-width:45px;text-align:center;">0.00</span>
+              <button class="action" id="m1-fwd" disabled style="flex:1;">Forward</button>
+              <button class="action" id="m1-stop" disabled style="flex:1;background:var(--bad);border-color:var(--bad);color:#fff;">Stop</button>
+              <button class="action" id="m1-rev" disabled style="flex:1;">Reverse</button>
             </div>
           </div>
           <div class="motor-slider">
             <label>Motor 3 (OUT3/OUT4, pin 4)</label>
             <div style="display:flex;gap:8px;align-items:center;">
-              <input type="range" id="m2-slider" min="-100" max="100" value="0" disabled style="flex:1;">
-              <span id="m2-value" style="font-family:var(--mono);min-width:45px;text-align:center;">0.00</span>
+              <button class="action" id="m2-fwd" disabled style="flex:1;">Forward</button>
+              <button class="action" id="m2-stop" disabled style="flex:1;background:var(--bad);border-color:var(--bad);color:#fff;">Stop</button>
+              <button class="action" id="m2-rev" disabled style="flex:1;">Reverse</button>
             </div>
           </div>
         </div>
-        <button class="action" id="m-stop" disabled style="width:100%;margin-top:12px;">Stop all motors</button>
       </div>
 
       <div class="servo-card">
@@ -609,9 +610,8 @@
     const svQuick = document.querySelectorAll(".sv-q");
     
     // Motor controls
-    const m1Slider = $("m1-slider"), m1Value = $("m1-value");
-    const m2Slider = $("m2-slider"), m2Value = $("m2-value");
-    const mStop = $("m-stop");
+    const m1Fwd = $("m1-fwd"), m1Stop = $("m1-stop"), m1Rev = $("m1-rev");
+    const m2Fwd = $("m2-fwd"), m2Stop = $("m2-stop"), m2Rev = $("m2-rev");
 
     let svPort = null, svWriter = null, svReader = null, svKeepReading = false;
     const svEncoder = new TextEncoder(), svDecoder = new TextDecoder();
@@ -639,9 +639,12 @@
       svRun.disabled = !on;
       svStop.disabled = !on;
       svApply.disabled = !on;
-      m1Slider.disabled = !on;
-      m2Slider.disabled = !on;
-      mStop.disabled = !on;
+      m1Fwd.disabled = !on;
+      m1Stop.disabled = !on;
+      m1Rev.disabled = !on;
+      m2Fwd.disabled = !on;
+      m2Stop.disabled = !on;
+      m2Rev.disabled = !on;
       [svCalStop, svCalFwd, svCalMspu, svCalRev].forEach(el => el.disabled = !on);
       svQuick.forEach(b => b.disabled = !on);
     }
@@ -728,27 +731,13 @@
     svQuick.forEach(b => b.onclick = () => { svLength.value = b.dataset.v; svRunLength(); });
     
     // Motor control event listeners
-    m1Slider.oninput = () => {
-      const val = parseFloat(m1Slider.value) / 100;
-      m1Value.textContent = val.toFixed(2);
-      svSend("M1" + val.toFixed(2));
-    };
-    
-    m2Slider.oninput = () => {
-      const val = parseFloat(m2Slider.value) / 100;
-      m2Value.textContent = val.toFixed(2);
-      svSend("M2" + val.toFixed(2));
-    };
-    
-    mStop.onclick = () => {
-      m1Slider.value = 0;
-      m2Slider.value = 0;
-      m1Value.textContent = "0.00";
-      m2Value.textContent = "0.00";
-      svSend("M10");
-      svSend("M20");
-    };
-    
+    m1Fwd.onclick = () => svSend("M1F");
+    m1Stop.onclick = () => svSend("M1S");
+    m1Rev.onclick = () => svSend("M1R");
+    m2Fwd.onclick = () => svSend("M2F");
+    m2Stop.onclick = () => svSend("M2S");
+    m2Rev.onclick = () => svSend("M2R");
+
     window.addEventListener("beforeunload", () => { if (svPort) svDisconnectFn(); });
   })();
   </script>

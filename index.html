@@ -114,6 +114,10 @@
     .servo-card { background: var(--panel); border: 1px solid var(--line-soft); border-radius: var(--radius); padding: 18px; margin-bottom: 16px; }
     .servo-card h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .6px; color: var(--text-faint); margin-bottom: 14px; }
 
+    .motor-sliders { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 12px; }
+    .motor-slider label { display: block; font-size: 12px; color: var(--text-dim); margin-bottom: 8px; }
+    .motor-slider input[type=range] { accent-color: var(--accent); }
+
     .run-row { display: flex; gap: 10px; }
     .run-row input[type=number] { flex: 1; font-family: var(--mono); font-size: 22px; padding: 12px 16px; background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius); color: var(--text); text-align: center; }
     .run-row input:focus { outline: none; border-color: var(--accent); }
@@ -279,6 +283,27 @@
           <button class="action sv-q" data-v="20" disabled>20</button>
         </div>
         <button class="action sv-stop" id="sv-stop" disabled>STOP servo now</button>
+      </div>
+
+      <div class="servo-card">
+        <h2>Motor Control (L298N)</h2>
+        <div class="motor-sliders">
+          <div class="motor-slider">
+            <label>Motor Set 1 & 2 (OUT1/OUT2)</label>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input type="range" id="m1-slider" min="-100" max="100" value="0" disabled style="flex:1;">
+              <span id="m1-value" style="font-family:var(--mono);min-width:45px;text-align:center;">0.00</span>
+            </div>
+          </div>
+          <div class="motor-slider">
+            <label>Motor 3 (OUT3/OUT4)</label>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input type="range" id="m2-slider" min="-100" max="100" value="0" disabled style="flex:1;">
+              <span id="m2-value" style="font-family:var(--mono);min-width:45px;text-align:center;">0.00</span>
+            </div>
+          </div>
+        </div>
+        <button class="action" id="m-stop" disabled style="width:100%;margin-top:12px;">Stop all motors</button>
       </div>
 
       <div class="servo-card">
@@ -582,6 +607,11 @@
     const svCalStop = $("sv-cal-stop"), svCalFwd = $("sv-cal-fwd"), svCalMspu = $("sv-cal-mspu"), svCalRev = $("sv-cal-rev");
     const svApply = $("sv-apply"), svConsole = $("sv-console");
     const svQuick = document.querySelectorAll(".sv-q");
+    
+    // Motor controls
+    const m1Slider = $("m1-slider"), m1Value = $("m1-value");
+    const m2Slider = $("m2-slider"), m2Value = $("m2-value");
+    const mStop = $("m-stop");
 
     let svPort = null, svWriter = null, svReader = null, svKeepReading = false;
     const svEncoder = new TextEncoder(), svDecoder = new TextDecoder();
@@ -609,6 +639,9 @@
       svRun.disabled = !on;
       svStop.disabled = !on;
       svApply.disabled = !on;
+      m1Slider.disabled = !on;
+      m2Slider.disabled = !on;
+      mStop.disabled = !on;
       [svCalStop, svCalFwd, svCalMspu, svCalRev].forEach(el => el.disabled = !on);
       svQuick.forEach(b => b.disabled = !on);
     }
@@ -693,6 +726,29 @@
     svApply.onclick = svApplyCal;
     svLength.addEventListener("keydown", e => { if (e.key === "Enter") svRunLength(); });
     svQuick.forEach(b => b.onclick = () => { svLength.value = b.dataset.v; svRunLength(); });
+    
+    // Motor control event listeners
+    m1Slider.oninput = () => {
+      const val = parseFloat(m1Slider.value) / 100;
+      m1Value.textContent = val.toFixed(2);
+      svSend("M1" + val.toFixed(2));
+    };
+    
+    m2Slider.oninput = () => {
+      const val = parseFloat(m2Slider.value) / 100;
+      m2Value.textContent = val.toFixed(2);
+      svSend("M2" + val.toFixed(2));
+    };
+    
+    mStop.onclick = () => {
+      m1Slider.value = 0;
+      m2Slider.value = 0;
+      m1Value.textContent = "0.00";
+      m2Value.textContent = "0.00";
+      svSend("M10");
+      svSend("M20");
+    };
+    
     window.addEventListener("beforeunload", () => { if (svPort) svDisconnectFn(); });
   })();
   </script>

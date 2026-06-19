@@ -98,11 +98,6 @@
     footer { margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--line-soft); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; font-size: 12px; color: var(--text-faint); }
     footer a { color: var(--accent); text-decoration: none; }
     footer a:hover { text-decoration: underline; }
-    /* Top-level page switch */
-    .page-switch { display: flex; gap: 6px; margin-bottom: 14px; }
-    .page-switch .page-btn { flex: 1; padding: 11px; border: 1px solid var(--line); background: var(--panel); color: var(--text-dim); font-size: 14px; font-weight: 600; border-radius: var(--radius); cursor: pointer; font-family: var(--sans); }
-    .page-switch .page-btn.active { background: var(--accent-dark); border-color: var(--accent); color: #fff; }
-
     /* Servo: connection bar */
     .conn { display: flex; align-items: center; gap: 10px; background: var(--panel); border: 1px solid var(--line-soft); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 16px; flex-wrap: wrap; }
     .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--text-faint); flex-shrink: 0; }
@@ -166,12 +161,7 @@
       </div>
     </header>
 
-    <div class="page-switch">
-      <button class="page-btn active" id="page-btn-detect">Detection</button>
-      <button class="page-btn" id="page-btn-servo">Servo control</button>
-    </div>
-
-    <!--   DETECTION PAGE   -->
+    <!--   DETECTION CONTROLS   -->
     <div id="page-detect">
 
     <div class="tabs">
@@ -254,8 +244,10 @@
 
     </div><!-- /page-detect -->
 
-    <!--   SERVO CONTROL PAGE   -->
-    <div id="page-servo" hidden>
+    <!--   SERVO AND MOTOR CONTROLS   -->
+    <div id="page-servo">
+
+      <div class="section-title">Servo and motor controls</div>
 
       <div id="servo-unsupported" class="warn-box" style="display:none;">
         <b>Heads up:</b> Servo control needs the Web Serial API, which works in
@@ -584,22 +576,6 @@
     clip.oninput=()=>clipOut.textContent=clip.value+"s";
     gap.oninput=()=>gapOut.textContent=gap.value+"s";
     switchMode("live");
-
-    //   PAGE SWITCHING (Detection <-> Servo)  
-    const pageDetect = $("page-detect"), pageServo = $("page-servo");
-    const pageBtnDetect = $("page-btn-detect"), pageBtnServo = $("page-btn-servo");
-
-    function showPage(which) {
-      const onServo = which === "servo";
-      pageDetect.hidden = onServo;
-      pageServo.hidden = !onServo;
-      pageBtnDetect.classList.toggle("active", !onServo);
-      pageBtnServo.classList.toggle("active", onServo);
-      // If we leave detection while the camera is running, stop it cleanly
-      if (onServo && running) stopCamera();
-    }
-    pageBtnDetect.onclick = () => showPage("detect");
-    pageBtnServo.onclick = () => showPage("servo");
 
     //   SERVO CONTROL (Web Serial)  
     const svDot = $("sv-dot"), svConnLabel = $("sv-conn-label");
